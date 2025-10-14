@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+  orders       Order[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+  WAITER
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  menuItems   MenuItem[]
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id         String      @id @default(uuid())
+  categoryId String      @map("category_id")
+  name       String
+  price      Float
+  image      String?
+  available  Boolean     @default(true)
+  category   Category    @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+
+  @@map("menu_items")
+}
+
+model Table {
+  id          String      @id @default(uuid())
+  tableNumber Int         @unique @map("table_number")
+  capacity    Int
+  status      TableStatus @default(AVAILABLE)
+  orders      Order[]
+
+  @@map("tables")
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+model Order {
+  id         String       @id @default(uuid())
+  tableId    String?      @map("table_id")
+  userId     String       @map("user_id")
+  status     OrderStatus  @default(PENDING)
+  total      Float
+  createdAt  DateTime     @default(now()) @map("created_at")
+  table      Table?       @relation(fields: [tableId], references: [id])
+  user       User         @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+  payments   Payment[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  SERVED
+  COMPLETED
+  CANCELLED
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String   @map("order_id")
+  menuItemId String   @map("menu_item_id")
+  quantity   Int
+  price      Float
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  orderId       String        @map("order_id")
+  amount        Float
+  method        PaymentMethod
+  transactionId String?       @map("transaction_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  order         Order         @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  OTHER
+}
+
+model Inventory {
+  id           String   @id @default(uuid())
+  itemName     String   @map("item_name")
+  quantity     Float
+  unit         String
+  minThreshold Float    @map("min_threshold")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("inventory")
+}
