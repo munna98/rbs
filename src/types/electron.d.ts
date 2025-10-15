@@ -11,6 +11,15 @@ export interface ElectronAPI {
   updateMenuItem: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
   deleteMenuItem: (id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   createCategory: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  
+  // Order operations
+  getTables: () => Promise<{ success: boolean; data: any; error?: string }>;
+  getOrders: () => Promise<{ success: boolean; data: any; error?: string }>;
+  getOrdersByTable: (tableId: string) => Promise<{ success: boolean; data: any; error?: string }>;
+  createOrder: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  updateOrder: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  recordPayment: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  updateTableStatus: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
 }
 
 declare global {

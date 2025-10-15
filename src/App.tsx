@@ -6,6 +6,8 @@ import Login from './features/auth/Login';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import MenuManagement from './pages/MenuManagement';
+import Orders from './pages/Orders';
+import TableManagement from './pages/TableManagement';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="menu" element={<MenuManagement />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="tables" element={<TableManagement />} />
           </Route>
         </Routes>
       </BrowserRouter>

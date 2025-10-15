@@ -40,3 +40,48 @@ export interface MenuItem {
   available: boolean;
   category?: Category;
 }
+
+export interface Table {
+  id: string;
+  tableNumber: number;
+  capacity: number;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED';
+  orders?: Order[];
+}
+
+export interface CartItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+}
+
+export interface Order {
+  id: string;
+  tableId?: string;
+  userId: string;
+  status: 'PENDING' | 'PREPARING' | 'SERVED' | 'COMPLETED' | 'CANCELLED';
+  total: number;
+  createdAt: Date;
+  orderItems?: OrderItem[];
+  table?: Table;
+}
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  menuItemId: string;
+  quantity: number;
+  price: number;
+  menuItem?: MenuItem;
+}
+
+export interface Payment {
+  id: string;
+  orderId: string;
+  amount: number;
+  method: 'CASH' | 'CARD' | 'UPI' | 'OTHER';
+  transactionId?: string;
+  createdAt: Date;
+}

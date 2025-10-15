@@ -16,4 +16,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateMenuItem: (data) => ipcRenderer.invoke('menu:update-item', data),
   deleteMenuItem: (id) => ipcRenderer.invoke('menu:delete-item', id),
   createCategory: (data) => ipcRenderer.invoke('menu:create-category', data),
+
+  // Order APIs
+  getTables: () => ipcRenderer.invoke('order:get-tables'),
+  getOrders: () => ipcRenderer.invoke('order:get-orders'),
+  getOrdersByTable: (tableId) => ipcRenderer.invoke('order:get-by-table', tableId),
+  createOrder: (data) => ipcRenderer.invoke('order:create', data),
+  updateOrder: (data) => ipcRenderer.invoke('order:update', data),
+  recordPayment: (data) => ipcRenderer.invoke('order:record-payment', data),
+  updateTableStatus: (data) => ipcRenderer.invoke('order:update-table-status', data),
 });
