@@ -1,9 +1,18 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const userService = require('./database/userService');
+import { app, BrowserWindow, ipcMain, protocol, net } from 'electron';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import userService from './database/userService.js';
+import menuService from './database/menuService.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
+
+// Register custom protocol before app ready
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'image', privileges: { secure: true, standard: true } }
+]);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -24,7 +33,17 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+// Handle custom image protocol
+app.whenReady().then(() => {
+  protocol.handle('image', (request) => {
+    // Extract file path from URL
+    // image://C:/Users/.../image.jpg -> C:/Users/.../image.jpg
+    const filepath = request.url.slice('image://'.length);
+    return net.fetch(`file://${filepath}`);
+  });
+
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -37,6 +56,7 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
 
 // Authentication IPC Handlers
 ipcMain.handle('auth:login', async (event, { username, password }) => {
@@ -70,6 +90,61 @@ ipcMain.handle('users:get-all', async () => {
   try {
     const users = await userService.getAllUsers();
     return { success: true, data: users };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Menu IPC Handlers
+ipcMain.handle('menu:get-items', async () => {
+  try {
+    const items = await menuService.getMenuItems();
+    return { success: true, data: items };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('menu:get-categories', async () => {
+  try {
+    const categories = await menuService.getCategories();
+    return { success: true, data: categories };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('menu:create-item', async (event, data) => {
+  try {
+    const item = await menuService.createMenuItem(data);
+    return { success: true, data: item };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('menu:update-item', async (event, data) => {
+  try {
+    const item = await menuService.updateMenuItem(data);
+    return { success: true, data: item };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('menu:delete-item', async (event, id) => {
+  try {
+    await menuService.deleteMenuItem(id);
+    return { success: true, data: id };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('menu:create-category', async (event, data) => {
+  try {
+    const category = await menuService.createCategory(data);
+    return { success: true, data: category };
   } catch (error) {
     return { success: false, error: error.message };
   }

@@ -24,3 +24,19 @@ export interface DashboardStats {
   completedOrders: number;
   revenue: number;
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface MenuItem {
+  id: string;
+  categoryId: string;
+  name: string;
+  price: number;
+  image?: string;
+  available: boolean;
+  category?: Category;
+}

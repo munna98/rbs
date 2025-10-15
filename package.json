@@ -2,7 +2,6 @@
   "name": "restaurant-billing-app",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -13,7 +12,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "node prisma/seed.js"
+    "seed": "node --no-warnings prisma/seed.js"
   },
   "build": {
     "appId": "com.restaurant.billing",
