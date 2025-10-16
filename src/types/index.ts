@@ -60,7 +60,8 @@ export interface CartItem {
 export interface Order {
   id: string;
   tableId?: string;
-  userId: string;
+  userId: String;
+  user: User;
   status: 'PENDING' | 'PREPARING' | 'SERVED' | 'COMPLETED' | 'CANCELLED';
   total: number;
   createdAt: Date;
@@ -84,4 +85,41 @@ export interface Payment {
   method: 'CASH' | 'CARD' | 'UPI' | 'OTHER';
   transactionId?: string;
   createdAt: Date;
+}
+
+export interface ReceiptData {
+  orderId: string;
+  orderNumber: string;
+  tableNumber?: number;
+  items: ReceiptItem[];
+  subtotal: number;
+  tax: number;
+  taxRate: number;
+  total: number;
+  paymentMethod: string;
+  amountPaid: number;
+  change: number;
+  cashier: string;
+  date: Date;
+  restaurantInfo: {
+    name: string;
+    address?: string;
+    phone?: string;
+    gstNumber?: string;
+  };
+}
+
+export interface ReceiptItem {
+  name: string;
+  quantity: number;
+  price: number;
+  total: number;
+}
+
+export interface PrinterSettings {
+  printerName: string;
+  paperWidth: number; // in mm (58mm or 80mm)
+  copies: number;
+  enableSound: boolean;
+  autoOpenDrawer: boolean;
 }

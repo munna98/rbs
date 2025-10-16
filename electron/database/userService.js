@@ -1,6 +1,6 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const prisma = require('./prisma');
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import prisma from './prisma.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
@@ -197,4 +197,4 @@ class UserService {
   }
 }
 
-module.exports = new UserService();
+export default new UserService();

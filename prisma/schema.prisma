@@ -91,6 +91,7 @@ model OrderItem {
   menuItemId String   @map("menu_item_id")
   quantity   Int
   price      Float
+  prepared   Boolean  @default(false)
   order      Order    @relation(fields: [orderId], references: [id])
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
 
@@ -125,4 +126,28 @@ model Inventory {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("inventory")
+}
+
+model RestaurantSettings {
+  id         String  @id @default(uuid())
+  name       String  @default("My Restaurant")
+  address    String?
+  phone      String?
+  email      String?
+  taxRate    Float   @default(5) @map("tax_rate")
+  currency   String  @default("INR")
+  gstNumber  String? @map("gst_number")
+
+  @@map("restaurant_settings")
+}
+
+model PrinterSettings {
+  id              String  @id @default(uuid())
+  printerName     String  @map("printer_name")
+  paperWidth      Int     @default(80) @map("paper_width")
+  copies          Int     @default(1)
+  enableSound     Boolean @default(false) @map("enable_sound")
+  autoOpenDrawer  Boolean @default(true) @map("auto_open_drawer")
+
+  @@map("printer_settings")
 }

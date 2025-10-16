@@ -9,8 +9,9 @@ import {
 } from '../features/tables/tableSlice';
 import TableCard from '../features/tables/components/TableCard';
 import TableDetailsModal from '../features/tables/components/TableDetailsModal';
+import TableFormModal from '../features/tables/components/TableFormModal';
 import toast from 'react-hot-toast';
-import { RefreshCw, Filter } from 'lucide-react';
+import { RefreshCw, Filter, Plus } from 'lucide-react';
 import type { Table } from '../types';
 
 const TableManagement = () => {
@@ -20,7 +21,10 @@ const TableManagement = () => {
   );
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTable, setEditingTable] = useState<Table | undefined>();
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load tables on mount
   useEffect(() => {
@@ -49,6 +53,65 @@ const TableManagement = () => {
       dispatch(fetchTables());
     } catch (error: any) {
       toast.error(error.message || 'Error clearing table');
+    }
+  };
+
+  const handleAddTable = () => {
+    setEditingTable(undefined);
+    setIsFormOpen(true);
+  };
+
+  const handleEditTable = (table: Table) => {
+    setEditingTable(table);
+    setIsFormOpen(true);
+  };
+
+  const handleSubmitTable = async (data: any) => {
+    setIsSubmitting(true);
+    try {
+      if (editingTable) {
+        // Update existing table
+        const result = await window.electronAPI.updateTable(data);
+        if (result.success) {
+          toast.success('Table updated successfully');
+          dispatch(fetchTables());
+          setIsFormOpen(false);
+        } else {
+          throw new Error(result.error);
+        }
+      } else {
+        // Create new table
+        const result = await window.electronAPI.createTable(data);
+        if (result.success) {
+          toast.success('Table created successfully');
+          dispatch(fetchTables());
+          setIsFormOpen(false);
+        } else {
+          throw new Error(result.error);
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error saving table');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteTable = async (tableId: string) => {
+    if (!window.confirm('Are you sure you want to delete this table?')) {
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.deleteTable(tableId);
+      if (result.success) {
+        toast.success('Table deleted successfully');
+        dispatch(fetchTables());
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error deleting table');
     }
   };
 
@@ -85,14 +148,23 @@ const TableManagement = () => {
               Monitor and manage restaurant tables
             </p>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={loading}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleAddTable}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+            >
+              <Plus className="w-5 h-5" />
+              Add Table
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Status Summary */}
@@ -153,9 +225,16 @@ const TableManagement = () => {
       ) : filteredTables.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 text-lg">No tables found</p>
-          <p className="text-gray-400">
+          <p className="text-gray-400 mb-4">
             {filterStatus !== 'ALL' ? 'Try changing the filter' : 'Add tables to get started'}
           </p>
+          <button
+            onClick={handleAddTable}
+            className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
+          >
+            <Plus className="w-5 h-5 inline mr-2" />
+            Add Your First Table
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
@@ -169,6 +248,18 @@ const TableManagement = () => {
           ))}
         </div>
       )}
+
+      {/* Table Form Modal */}
+      <TableFormModal
+        isOpen={isFormOpen}
+        table={editingTable}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingTable(undefined);
+        }}
+        onSubmit={handleSubmitTable}
+        isLoading={isSubmitting}
+      />
 
       {/* Table Details Modal */}
       <TableDetailsModal

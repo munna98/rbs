@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Printer } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   total: number;
   onClose: () => void;
   onSubmit: (data: { method: string; amount: number }) => void;
+  onPrintPreview?: () => void;
   isLoading?: boolean;
 }
 
@@ -14,6 +15,7 @@ const CheckoutModal = ({
   total,
   onClose,
   onSubmit,
+  onPrintPreview,
   isLoading = false,
 }: CheckoutModalProps) => {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'UPI'>('CASH');
@@ -104,6 +106,15 @@ const CheckoutModal = ({
           >
             Cancel
           </button>
+          {onPrintPreview && (
+            <button
+              onClick={onPrintPreview}
+              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+              disabled={isLoading || amount < total}
+            >
+              <Printer className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={handleSubmit}
             disabled={isLoading || amount < total}

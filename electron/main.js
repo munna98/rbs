@@ -4,6 +4,10 @@ import { fileURLToPath } from 'url';
 import userService from './database/userService.js';
 import menuService from './database/menuService.js';
 import orderService from './database/orderService.js';
+import tableService from './database/tableService.js';
+import settingsService from './database/settingsService.js';
+import printService from './services/printService.js';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
@@ -37,8 +41,6 @@ function createWindow() {
 // Handle custom image protocol
 app.whenReady().then(() => {
   protocol.handle('image', (request) => {
-    // Extract file path from URL
-    // image://C:/Users/.../image.jpg -> C:/Users/.../image.jpg
     const filepath = request.url.slice('image://'.length);
     return net.fetch(`file://${filepath}`);
   });
@@ -58,21 +60,13 @@ app.on('activate', () => {
   }
 });
 
+// ==================== IPC HANDLERS ====================
 
-// Authentication IPC Handlers
+// ========== AUTHENTICATION ==========
 ipcMain.handle('auth:login', async (event, { username, password }) => {
   try {
     const result = await userService.login(username, password);
     return { success: true, data: result };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('auth:create-user', async (event, { username, password, role }) => {
-  try {
-    const user = await userService.createUser(username, password, role);
-    return { success: true, data: user };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -87,16 +81,44 @@ ipcMain.handle('auth:verify-token', async (event, token) => {
   }
 });
 
+// ========== USER MANAGEMENT ==========
 ipcMain.handle('users:get-all', async () => {
   try {
-    const users = await userService.getAllUsers();
+    const users = await settingsService.getAllUsers();
     return { success: true, data: users };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
 
-// Menu IPC Handlers
+ipcMain.handle('users:create', async (event, data) => {
+  try {
+    const user = await settingsService.createUser(data);
+    return { success: true, data: user };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('users:update', async (event, data) => {
+  try {
+    const user = await settingsService.updateUser(data);
+    return { success: true, data: user };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('users:delete', async (event, id) => {
+  try {
+    await settingsService.deleteUser(id);
+    return { success: true, data: id };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ========== MENU MANAGEMENT ==========
 ipcMain.handle('menu:get-items', async () => {
   try {
     const items = await menuService.getMenuItems();
@@ -151,11 +173,56 @@ ipcMain.handle('menu:create-category', async (event, data) => {
   }
 });
 
+// ========== TABLE MANAGEMENT ==========
+ipcMain.handle('table:get-all', async () => {
+  try {
+    const tables = await tableService.getAllTables();
+    return { success: true, data: tables };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 
-// Orders IPC Handlers
+ipcMain.handle('table:create', async (event, data) => {
+  try {
+    const table = await tableService.createTable(data);
+    return { success: true, data: table };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('table:update', async (event, data) => {
+  try {
+    const table = await tableService.updateTable(data);
+    return { success: true, data: table };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('table:delete', async (event, id) => {
+  try {
+    await tableService.deleteTable(id);
+    return { success: true, data: id };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('table:update-status', async (event, data) => {
+  try {
+    const table = await tableService.updateTableStatus(data);
+    return { success: true, data: table };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ========== ORDER MANAGEMENT ==========
 ipcMain.handle('order:get-tables', async () => {
   try {
-    const tables = await orderService.getTables();
+    const tables = await tableService.getAllTables();
     return { success: true, data: tables };
   } catch (error) {
     return { success: false, error: error.message };
@@ -211,6 +278,118 @@ ipcMain.handle('order:update-table-status', async (event, data) => {
   try {
     const table = await orderService.updateTableStatus(data);
     return { success: true, data: table };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ========== KITCHEN DISPLAY ==========
+ipcMain.handle('kitchen:get-orders', async () => {
+  try {
+    const orders = await orderService.getKitchenOrders();
+    return { success: true, data: orders };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('kitchen:update-status', async (event, data) => {
+  try {
+    const order = await orderService.updateOrderStatus(data);
+    return { success: true, data: order };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('kitchen:mark-item-prepared', async (event, data) => {
+  try {
+    const item = await orderService.markItemPrepared(data);
+    return { success: true, data: item };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ========== SETTINGS ==========
+ipcMain.handle('settings:get-restaurant', async () => {
+  try {
+    const settings = await settingsService.getRestaurantSettings();
+    return { success: true, data: settings };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('settings:update-restaurant', async (event, data) => {
+  try {
+    const settings = await settingsService.updateRestaurantSettings(data);
+    return { success: true, data: settings };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Printing IPC Handlers
+ipcMain.handle('print:receipt', async (event, data) => {
+  try {
+    await printService.printReceipt(data.receiptData, data.printerSettings);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('print:preview', async (event, data) => {
+  try {
+    await printService.printPreview(data.receiptData, data.printerSettings);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('print:get-printers', async () => {
+  try {
+    const printers = await printService.getAvailablePrinters();
+    return { success: true, data: printers };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('print:test', async (event, printerName) => {
+  try {
+    await printService.testPrint(printerName);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('print:open-drawer', async (event, printerName) => {
+  try {
+    await printService.openCashDrawer(printerName);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Printer Settings
+ipcMain.handle('settings:get-printer', async () => {
+  try {
+    const settings = await settingsService.getPrinterSettings();
+    return { success: true, data: settings };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('settings:update-printer', async (event, data) => {
+  try {
+    const settings = await settingsService.updatePrinterSettings(data);
+    return { success: true, data: settings };
   } catch (error) {
     return { success: false, error: error.message };
   }

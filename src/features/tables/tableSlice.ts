@@ -22,7 +22,7 @@ export const fetchTables = createAsyncThunk(
   'table/fetchTables',
   async (_, { rejectWithValue }) => {
     try {
-      const result = await window.electronAPI.getTables();
+      const result = await window.electronAPI.getAllTables();
       if (result.success) return result.data;
       return rejectWithValue(result.error);
     } catch (error: any) {

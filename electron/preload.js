@@ -25,4 +25,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateOrder: (data) => ipcRenderer.invoke('order:update', data),
   recordPayment: (data) => ipcRenderer.invoke('order:record-payment', data),
   updateTableStatus: (data) => ipcRenderer.invoke('order:update-table-status', data),
+
+  // Table APIs
+  getAllTables: () => ipcRenderer.invoke('table:get-all'),
+  createTable: (data) => ipcRenderer.invoke('table:create', data),
+  updateTable: (data) => ipcRenderer.invoke('table:update', data),
+  deleteTable: (id) => ipcRenderer.invoke('table:delete', id),
+  updateTableStatus: (data) => ipcRenderer.invoke('table:update-status', data),
+
+  // Kitchen APIs
+  getKitchenOrders: () => ipcRenderer.invoke('kitchen:get-orders'),
+  updateOrderStatus: (data) => ipcRenderer.invoke('kitchen:update-status', data),
+  markItemPrepared: (data) => ipcRenderer.invoke('kitchen:mark-item-prepared', data),
+
+  // User Management APIs
+  getAllUsers: () => ipcRenderer.invoke('users:get-all'),
+  createUser: (data) => ipcRenderer.invoke('users:create', data),
+  updateUser: (data) => ipcRenderer.invoke('users:update', data),
+  deleteUser: (id) => ipcRenderer.invoke('users:delete', id),
+  
+  // Settings APIs
+  getRestaurantSettings: () => ipcRenderer.invoke('settings:get-restaurant'),
+  updateRestaurantSettings: (data) => ipcRenderer.invoke('settings:update-restaurant', data),
+
+  // Printing APIs
+  printReceipt: (data) => ipcRenderer.invoke('print:receipt', data),
+  printPreview: (data) => ipcRenderer.invoke('print:preview', data),
+  getAvailablePrinters: () => ipcRenderer.invoke('print:get-printers'),
+  testPrint: (printerName) => ipcRenderer.invoke('print:test', printerName),
+  openCashDrawer: (printerName) => ipcRenderer.invoke('print:open-drawer', printerName),
+  getPrinterSettings: () => ipcRenderer.invoke('settings:get-printer'),
+  updatePrinterSettings: (data) => ipcRenderer.invoke('settings:update-printer', data),
+
 });

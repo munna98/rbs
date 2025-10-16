@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard';
 import MenuManagement from './pages/MenuManagement';
 import Orders from './pages/Orders';
 import TableManagement from './pages/TableManagement';
+import KitchenDisplay from './pages/KitchenDisplay';
+import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -30,6 +32,8 @@ function App() {
             <Route path="menu" element={<MenuManagement />} />
             <Route path="orders" element={<Orders />} />
             <Route path="tables" element={<TableManagement />} />
+            <Route path="kitchen" element={<KitchenDisplay />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </BrowserRouter>

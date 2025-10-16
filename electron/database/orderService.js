@@ -193,6 +193,30 @@ const orderService = {
       throw error;
     }
   },
+//for kitchen
+async updateOrderStatus(data) {
+  try {
+    const { orderId, status } = data;
+
+    const order = await prisma.order.update({
+      where: { id: orderId },
+      data: { status },
+      include: {
+        orderItems: {
+          include: {
+            menuItem: true,
+          },
+        },
+        table: true,
+      },
+    });
+
+    return order;
+  } catch (error) {
+    throw error;
+  }
+},
+
 };
 
 export default orderService;

@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 
 const Orders = () => {
   const dispatch = useAppDispatch();
-  const { cart, selectedTable, tables, tax } = useAppSelector(
+  const { cart, selectedTable, tables, tax, taxRate } = useAppSelector(
     (state) => state.order
   );
   const { items: menuItems } = useAppSelector((state) => state.menu);
@@ -74,6 +74,51 @@ const Orders = () => {
         throw new Error(paymentResult.error);
       }
 
+      // Get restaurant settings
+      const restaurantResult = await window.electronAPI.getRestaurantSettings();
+      const printerResult = await window.electronAPI.getPrinterSettings();
+
+      // Print receipt
+      if (restaurantResult.success && printerResult.success) {
+        const receiptData = {
+          orderId: orderResult.data.id,
+          orderNumber: orderResult.data.id.slice(0, 8).toUpperCase(),
+          tableNumber: selectedTable.tableNumber,
+          items: cart.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.subtotal,
+          })),
+          subtotal,
+          tax,
+          taxRate,
+          total,
+          paymentMethod: data.method,
+          amountPaid: data.amount,
+          change: data.amount - total,
+          cashier: user?.username || 'Unknown',
+          date: new Date(),
+          restaurantInfo: {
+            name: restaurantResult.data.name,
+            address: restaurantResult.data.address,
+            phone: restaurantResult.data.phone,
+            gstNumber: restaurantResult.data.gstNumber,
+          },
+        };
+
+        try {
+          await window.electronAPI.printReceipt({
+            receiptData,
+            printerSettings: printerResult.data,
+          });
+          toast.success('Receipt printed successfully!');
+        } catch (printError) {
+          toast.error('Order completed but receipt printing failed');
+          console.error('Print error:', printError);
+        }
+      }
+
       toast.success('Order completed successfully!');
       dispatch(clearCart());
       setIsCheckoutOpen(false);
@@ -84,6 +129,55 @@ const Orders = () => {
       setIsLoading(false);
     }
   };
+
+  const handlePrintPreview = async () => {
+  if (!selectedTable || cart.length === 0) {
+    toast.error('No items in cart');
+    return;
+  }
+
+  try {
+    const restaurantResult = await window.electronAPI.getRestaurantSettings();
+    const printerResult = await window.electronAPI.getPrinterSettings();
+
+    if (restaurantResult.success && printerResult.success) {
+      const receiptData = {
+        orderId: 'PREVIEW',
+        orderNumber: 'PREVIEW',
+        tableNumber: selectedTable.tableNumber,
+        items: cart.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.subtotal,
+        })),
+        subtotal,
+        tax,
+        taxRate,
+        total,
+        paymentMethod: 'CASH',
+        amountPaid: total,
+        change: 0,
+        cashier: user?.username || 'Unknown',
+        date: new Date(),
+        restaurantInfo: {
+          name: restaurantResult.data.name,
+          address: restaurantResult.data.address,
+          phone: restaurantResult.data.phone,
+          gstNumber: restaurantResult.data.gstNumber,
+        },
+      };
+
+      await window.electronAPI.printPreview({
+        receiptData,
+        printerSettings: printerResult.data,
+      });
+    }
+  } catch (error: any) {
+    toast.error('Preview failed: ' + error.message);
+  }
+};
+
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -129,6 +223,7 @@ const Orders = () => {
         total={total}
         onClose={() => setIsCheckoutOpen(false)}
         onSubmit={handleCheckout}
+        onPrintPreview={handlePrintPreview}
         isLoading={isLoading}
       />
     </div>

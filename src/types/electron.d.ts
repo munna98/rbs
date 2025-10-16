@@ -20,6 +20,40 @@ export interface ElectronAPI {
   updateOrder: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
   recordPayment: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
   updateTableStatus: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+
+
+  // Table operations
+  getAllTables: () => Promise<{ success: boolean; data: any; error?: string }>;
+  createTable: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  updateTable: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  deleteTable: (id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  updateTableStatus: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+
+
+  // Kitchen operations
+  getKitchenOrders: () => Promise<{ success: boolean; data: any; error?: string }>;
+  updateOrderStatus: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  markItemPrepared: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+
+ // User Management
+  getAllUsers: () => Promise<{ success: boolean; data: any; error?: string }>;
+  createUser: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  updateUser: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+  deleteUser: (id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  
+  // Settings
+  getRestaurantSettings: () => Promise<{ success: boolean; data: any; error?: string }>;
+  updateRestaurantSettings: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+
+  // Printing operations
+  printReceipt: (data: any) => Promise<{ success: boolean; error?: string }>;
+  printPreview: (data: any) => Promise<{ success: boolean; error?: string }>;
+  getAvailablePrinters: () => Promise<{ success: boolean; data?: any; error?: string }>;
+  testPrint: (printerName: string) => Promise<{ success: boolean; error?: string }>;
+  openCashDrawer: (printerName: string) => Promise<{ success: boolean; error?: string }>;
+  getPrinterSettings: () => Promise<{ success: boolean; data: any; error?: string }>;
+  updatePrinterSettings: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+
 }
 
 declare global {
