@@ -7,9 +7,10 @@ import type { MenuItem, Category } from "../../../types";
 
 // ✅ Zod schema with coercion
 const schema = z.object({
-  name: z.string().min(1, "Name is required"),
-  categoryId: z.string().min(1, "Category is required"),
-  price: z.coerce.number().min(0, "Price must be positive"),
+  name: z.string().min(1, 'Name is required'),
+  code: z.string().min(1, 'Code is required').max(10, 'Code too long'),
+  categoryId: z.string().min(1, 'Category is required'),
+  price: z.coerce.number().min(0, 'Price must be positive'),
 });
 
 // ✅ Separate input and output types to avoid resolver mismatch
@@ -80,6 +81,7 @@ const MenuItemModal = ({
     const submitData: MenuItem = {
       id: item?.id ?? crypto.randomUUID(),
       name: data.name,
+      code: data.code,
       categoryId: data.categoryId,
       price: data.price,
       image: imageBase64 ?? item?.image,
@@ -146,6 +148,23 @@ const MenuItemModal = ({
             {errors.name && (
               <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Item Code</label>
+            <input
+              type="text"
+              {...register('code')}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+              placeholder="e.g., BIRYA01"
+              maxLength={10}
+            />
+            {errors.code && (
+              <p className="text-red-500 text-sm mt-1">{errors.code.message}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Quick search code (e.g., BIRYA01 for Chicken Biryani)
+            </p>
           </div>
 
           {/* Category */}

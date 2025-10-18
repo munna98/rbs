@@ -4,15 +4,26 @@ import {
   fetchTables,
   getTableOrders,
   selectTable,
-  clearTable,
   clearSelectedTable,
 } from '../features/tables/tableSlice';
 import TableCard from '../features/tables/components/TableCard';
 import TableDetailsModal from '../features/tables/components/TableDetailsModal';
 import TableFormModal from '../features/tables/components/TableFormModal';
+import TransferOrderModal from '../features/tables/components/TransferOrderModal';
+import ReserveTableModal from '../features/tables/components/ReserveTableModal';
+import MergeTablesModal from '../features/tables/components/MergeTablesModal';
 import toast from 'react-hot-toast';
-import { RefreshCw, Filter, Plus } from 'lucide-react';
-import type { Table } from '../types';
+import {
+  RefreshCw,
+  Filter,
+  Plus,
+  ArrowRightLeft,
+  Calendar,
+  Merge,
+  Trash2,
+  Edit,
+} from 'lucide-react';
+import type { Table, Order } from '../types';
 
 const TableManagement = () => {
   const dispatch = useAppDispatch();
@@ -22,9 +33,14 @@ const TableManagement = () => {
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [isReserveOpen, setIsReserveOpen] = useState(false);
+  const [isMergeOpen, setIsMergeOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<Table | undefined>();
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [transferOrder, setTransferOrder] = useState<Order | null>(null);
+  const [reserveTable, setReserveTable] = useState<Table | null>(null);
 
   // Load tables on mount
   useEffect(() => {
@@ -48,9 +64,13 @@ const TableManagement = () => {
 
   const handleClearTable = async (tableId: string) => {
     try {
-      await dispatch(clearTable(tableId)).unwrap();
-      toast.success('Table cleared successfully');
-      dispatch(fetchTables());
+      const result = await window.electronAPI.clearTable(tableId);
+      if (result.success) {
+        toast.success('Table cleared successfully');
+        dispatch(fetchTables());
+      } else {
+        toast.error(result.error || 'Failed to clear table');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Error clearing table');
     }
@@ -64,37 +84,6 @@ const TableManagement = () => {
   const handleEditTable = (table: Table) => {
     setEditingTable(table);
     setIsFormOpen(true);
-  };
-
-  const handleSubmitTable = async (data: any) => {
-    setIsSubmitting(true);
-    try {
-      if (editingTable) {
-        // Update existing table
-        const result = await window.electronAPI.updateTable(data);
-        if (result.success) {
-          toast.success('Table updated successfully');
-          dispatch(fetchTables());
-          setIsFormOpen(false);
-        } else {
-          throw new Error(result.error);
-        }
-      } else {
-        // Create new table
-        const result = await window.electronAPI.createTable(data);
-        if (result.success) {
-          toast.success('Table created successfully');
-          dispatch(fetchTables());
-          setIsFormOpen(false);
-        } else {
-          throw new Error(result.error);
-        }
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Error saving table');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const handleDeleteTable = async (tableId: string) => {
@@ -115,6 +104,35 @@ const TableManagement = () => {
     }
   };
 
+  const handleSubmitTable = async (data: any) => {
+    setIsSubmitting(true);
+    try {
+      if (editingTable) {
+        const result = await window.electronAPI.updateTable(data);
+        if (result.success) {
+          toast.success('Table updated successfully');
+          dispatch(fetchTables());
+          setIsFormOpen(false);
+        } else {
+          throw new Error(result.error);
+        }
+      } else {
+        const result = await window.electronAPI.createTable(data);
+        if (result.success) {
+          toast.success('Table created successfully');
+          dispatch(fetchTables());
+          setIsFormOpen(false);
+        } else {
+          throw new Error(result.error);
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error saving table');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleRefresh = () => {
     dispatch(fetchTables());
     toast.success('Tables refreshed');
@@ -123,6 +141,17 @@ const TableManagement = () => {
   const handleCloseDetails = () => {
     setIsDetailsOpen(false);
     dispatch(clearSelectedTable());
+  };
+
+  const handleTransferClick = (order: Order, table: Table) => {
+    setTransferOrder(order);
+    dispatch(selectTable(table));
+    setIsTransferOpen(true);
+  };
+
+  const handleReserveClick = (table: Table) => {
+    setReserveTable(table);
+    setIsReserveOpen(true);
   };
 
   // Filter tables
@@ -137,6 +166,8 @@ const TableManagement = () => {
     RESERVED: tables.filter((t) => t.status === 'RESERVED').length,
   };
 
+  const availableTables = tables.filter((t) => t.status === 'AVAILABLE');
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -149,6 +180,13 @@ const TableManagement = () => {
             </p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => setIsMergeOpen(true)}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+            >
+              <Merge className="w-5 h-5" />
+              Merge Tables
+            </button>
             <button
               onClick={handleAddTable}
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
@@ -239,17 +277,101 @@ const TableManagement = () => {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {filteredTables.map((table) => (
-            <TableCard
-              key={table.id}
-              table={table}
-              onClick={handleTableClick}
-              onClear={handleClearTable}
-            />
+            <div key={table.id} className="relative group">
+              <TableCard
+                table={table}
+                onClick={handleTableClick}
+                onClear={handleClearTable}
+              />
+
+              {/* Quick Actions Menu - Context Specific */}
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <div className="bg-white rounded-lg shadow-lg p-2 space-y-1">
+                  {/* Occupied Table Actions */}
+                  {table.status === 'OCCUPIED' && (
+                    <>
+                      {table.orders && table.orders.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTransferClick(table.orders![0], table);
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded"
+                        >
+                          <ArrowRightLeft className="w-4 h-4" />
+                          Transfer
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClearTable(table.id);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Clear
+                      </button>
+                    </>
+                  )}
+
+                  {/* Reserved Table Actions */}
+                  {table.status === 'RESERVED' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditTable(table);
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </button>
+                  )}
+
+                  {/* Available Table Actions */}
+                  {table.status === 'AVAILABLE' && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReserveClick(table);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-yellow-600 hover:bg-yellow-50 rounded"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Reserve
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditTable(table);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTable(table.id);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}
 
-      {/* Table Form Modal */}
+      {/* Modals */}
       <TableFormModal
         isOpen={isFormOpen}
         table={editingTable}
@@ -261,12 +383,51 @@ const TableManagement = () => {
         isLoading={isSubmitting}
       />
 
-      {/* Table Details Modal */}
       <TableDetailsModal
         isOpen={isDetailsOpen}
         table={selectedTable}
         orders={tableOrders}
         onClose={handleCloseDetails}
+      />
+
+      {transferOrder && selectedTable && (
+        <TransferOrderModal
+          isOpen={isTransferOpen}
+          order={transferOrder}
+          currentTable={selectedTable}
+          availableTables={availableTables}
+          onClose={() => {
+            setIsTransferOpen(false);
+            setTransferOrder(null);
+          }}
+          onSuccess={() => {
+            dispatch(fetchTables());
+            handleCloseDetails();
+          }}
+        />
+      )}
+
+      {reserveTable && (
+        <ReserveTableModal
+          isOpen={isReserveOpen}
+          table={reserveTable}
+          onClose={() => {
+            setIsReserveOpen(false);
+            setReserveTable(null);
+          }}
+          onSuccess={() => {
+            dispatch(fetchTables());
+          }}
+        />
+      )}
+
+      <MergeTablesModal
+        isOpen={isMergeOpen}
+        tables={tables}
+        onClose={() => setIsMergeOpen(false)}
+        onSuccess={() => {
+          dispatch(fetchTables());
+        }}
       />
     </div>
   );

@@ -3,6 +3,8 @@ import {
   LayoutDashboard,
   UtensilsCrossed,
   ShoppingCart,
+  List,
+  Printer,
   Users,
   Package,
   BarChart3,
@@ -17,16 +19,18 @@ const Sidebar = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['ADMIN', 'CASHIER', 'WAITER'] },
-    { icon: ShoppingCart, label: 'Orders', path: '/orders', roles: ['ADMIN', 'CASHIER', 'WAITER'] },
-    { icon: UtensilsCrossed, label: 'Menu', path: '/menu', roles: ['ADMIN', 'CASHIER'] },
-    { icon: Users, label: 'Tables', path: '/tables', roles: ['ADMIN', 'CASHIER', 'WAITER'] },
-    { icon: ChefHat, label: 'Kitchen', path: '/kitchen', roles: ['ADMIN', 'CASHIER'] },
-    { icon: Package, label: 'Inventory', path: '/inventory', roles: ['ADMIN'] },
-    { icon: BarChart3, label: 'Reports', path: '/reports', roles: ['ADMIN'] },
-    { icon: Settings, label: 'Settings', path: '/settings', roles: ['ADMIN'] },
-  ];
+const menuItems = [
+{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['ADMIN', 'CASHIER', 'WAITER'] },
+{ icon: ShoppingCart, label: 'New Order', path: '/orders', roles: ['ADMIN', 'CASHIER', 'WAITER'] },
+{ icon: List, label: 'Active Orders', path: '/orders/active', roles: ['ADMIN', 'CASHIER', 'WAITER'] },
+{ icon: Printer, label: 'KOT Queue', path: '/kot-queue', roles: ['ADMIN', 'CASHIER', 'WAITER'] }, // NEW
+{ icon: UtensilsCrossed, label: 'Menu', path: '/menu', roles: ['ADMIN', 'CASHIER'] },
+{ icon: Users, label: 'Tables', path: '/tables', roles: ['ADMIN', 'CASHIER', 'WAITER'] },
+{ icon: ChefHat, label: 'Kitchen', path: '/kitchen', roles: ['ADMIN', 'CASHIER'] },
+{ icon: Package, label: 'Inventory', path: '/inventory', roles: ['ADMIN'] },
+{ icon: BarChart3, label: 'Reports', path: '/reports', roles: ['ADMIN'] },
+{ icon: Settings, label: 'Settings', path: '/settings', roles: ['ADMIN'] },
+];
 
   const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(user?.role || '')

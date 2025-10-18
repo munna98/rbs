@@ -35,6 +35,7 @@ export interface MenuItem {
   id: string;
   categoryId: string;
   name: string;
+  code: string;
   price: number;
   image?: string;
   available: boolean;
@@ -59,14 +60,26 @@ export interface CartItem {
 
 export interface Order {
   id: string;
+  orderNumber?: string;
+  kotNumber?: string;
+  kotPrinted?: boolean;
+  kotPrintedAt?: Date;
   tableId?: string;
-  userId: String;
-  user: User;
-  status: 'PENDING' | 'PREPARING' | 'SERVED' | 'COMPLETED' | 'CANCELLED';
+  userId: string;
+  orderType: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  status: 'PENDING' | 'PREPARING' | 'READY' | 'SERVED' | 'COMPLETED' | 'CANCELLED';
   total: number;
+  discount?: number;
+  notes?: string;
   createdAt: Date;
+  updatedAt?: Date;
   orderItems?: OrderItem[];
   table?: Table;
+  user?: User;
+  payments?: Payment[];
 }
 
 export interface OrderItem {
@@ -75,8 +88,11 @@ export interface OrderItem {
   menuItemId: string;
   quantity: number;
   price: number;
+  prepared?: boolean; 
+  notes?: string;
   menuItem?: MenuItem;
 }
+
 
 export interface Payment {
   id: string;

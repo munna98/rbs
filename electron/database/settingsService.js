@@ -188,8 +188,10 @@ async getPrinterSettings() {
       settings = await prisma.printerSettings.create({
         data: {
           printerName: '',
+          kitchenPrinterName: null, // NEW
           paperWidth: 80,
           copies: 1,
+          kotCopies: 1, // NEW
           enableSound: false,
           autoOpenDrawer: true,
         },
@@ -204,7 +206,15 @@ async getPrinterSettings() {
 
 async updatePrinterSettings(data) {
   try {
-    const { printerName, paperWidth, copies, enableSound, autoOpenDrawer } = data;
+    const { 
+      printerName, 
+      kitchenPrinterName, // NEW
+      paperWidth, 
+      copies, 
+      kotCopies, // NEW
+      enableSound, 
+      autoOpenDrawer 
+    } = data;
 
     let settings = await prisma.printerSettings.findFirst();
 
@@ -212,8 +222,10 @@ async updatePrinterSettings(data) {
       settings = await prisma.printerSettings.create({
         data: {
           printerName,
+          kitchenPrinterName,
           paperWidth: parseInt(paperWidth),
           copies: parseInt(copies),
+          kotCopies: parseInt(kotCopies || 1),
           enableSound,
           autoOpenDrawer,
         },
@@ -223,8 +235,10 @@ async updatePrinterSettings(data) {
         where: { id: settings.id },
         data: {
           printerName,
+          kitchenPrinterName,
           paperWidth: parseInt(paperWidth),
           copies: parseInt(copies),
+          kotCopies: parseInt(kotCopies || 1),
           enableSound,
           autoOpenDrawer,
         },
@@ -236,6 +250,7 @@ async updatePrinterSettings(data) {
     throw error;
   }
 },
+
 };
 
 export default settingsService;

@@ -11,7 +11,13 @@ export interface OrderState {
   loading: boolean;
   error: string | null;
   tax: number;
-  taxRate: number; // e.g., 5 for 5%
+  taxRate: number;
+  orderType: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'; 
+  customerInfo: {
+    name: string;
+    phone: string;
+    address: string;
+  } | null; 
 }
 
 const initialState: OrderState = {
@@ -24,6 +30,8 @@ const initialState: OrderState = {
   error: null,
   tax: 0,
   taxRate: 5,
+  orderType: 'DINE_IN', 
+  customerInfo: null, 
 };
 
 // Async Thunks
@@ -155,6 +163,8 @@ const orderSlice = createSlice({
       state.tax = 0;
       state.selectedTable = null;
       state.currentOrder = null;
+      state.orderType = 'DINE_IN';
+      state.customerInfo = null;
     },
 
     selectTable: (state, action) => {
@@ -164,6 +174,22 @@ const orderSlice = createSlice({
     setTaxRate: (state, action) => {
       state.taxRate = action.payload;
       state.tax = (state.cart.reduce((sum, item) => sum + item.subtotal, 0) * state.taxRate) / 100;
+    },
+
+    setOrderType: (state, action) => {
+      state.orderType = action.payload;
+      // Clear table selection if not dine-in
+      if (action.payload !== 'DINE_IN') {
+        state.selectedTable = null;
+      }
+      // Clear customer info if dine-in
+      if (action.payload === 'DINE_IN') {
+        state.customerInfo = null;
+      }
+    },
+
+    setCustomerInfo: (state, action) => {
+      state.customerInfo = action.payload;
     },
 
     clearError: (state) => {
@@ -229,6 +255,8 @@ export const {
   selectTable,
   setTaxRate,
   clearError,
+  setOrderType, 
+  setCustomerInfo, 
 } = orderSlice.actions;
 
 export default orderSlice.reducer;

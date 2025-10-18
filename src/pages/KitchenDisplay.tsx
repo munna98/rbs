@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
   fetchKitchenOrders,
@@ -8,6 +8,7 @@ import {
 } from '../features/kitchen/kitchenSlice';
 import KitchenOrderCard from '../features/kitchen/components/KitchenOrderCard';
 import KitchenStats from '../features/kitchen/components/KitchenStats';
+import KOTBadge from '../components/KOTBadge';
 import toast from 'react-hot-toast';
 import { RefreshCw, Filter } from 'lucide-react';
 
@@ -135,12 +136,22 @@ const KitchenDisplay = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOrders.map((order) => (
-            <KitchenOrderCard
-              key={order.id}
-              order={order}
-              onStatusChange={handleStatusChange}
-              onItemToggle={handleItemToggle}
-            />
+            <div key={order.id} className="relative">
+              <KitchenOrderCard
+                order={order}
+                onStatusChange={handleStatusChange}
+                onItemToggle={handleItemToggle}
+              />
+              
+              {/* KOT Badge */}
+              <div className="absolute top-2 right-2">
+                <KOTBadge
+                  kotPrinted={order.kotPrinted || false}
+                  kotNumber={order.kotNumber}
+                  size="sm"
+                />
+              </div>
+            </div>
           ))}
         </div>
       )}

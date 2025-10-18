@@ -55,48 +55,84 @@ const orderService = {
   },
 
   async createOrder(data) {
-    try {
-      const { tableId, userId, items } = data;
+  try {
+    const { tableId, userId, items, orderType, customerInfo } = data;
 
-      const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // Generate order number
+    const orderCount = await prisma.order.count();
+    const orderNumber = `ORD${String(orderCount + 1).padStart(5, '0')}`;
 
-      const order = await prisma.order.create({
-        data: {
-          tableId,
-          userId,
-          status: 'PENDING',
-          total,
-          orderItems: {
-            create: items.map((item) => ({
-              menuItemId: item.menuItemId,
-              quantity: item.quantity,
-              price: item.price,
-            })),
-          },
-        },
-        include: {
-          orderItems: {
-            include: {
-              menuItem: true,
+    // Generate KOT number
+    const kotCount = await prisma.order.count({
+      where: { kotNumber: { not: null } },
+    });
+    const kotNumber = `KOT${String(kotCount + 1).padStart(5, '0')}`;
+
+    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const orderData = {
+      orderNumber,
+      kotNumber, // NEW
+      kotPrinted: false, // NEW
+      userId,
+      status: 'PENDING',
+      total,
+      orderType: orderType || 'DINE_IN',
+      orderItems: {
+        create: items.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          price: item.price,
+          notes: item.notes || null,
+        })),
+      },
+    };
+
+    // Add table for dine-in orders
+    if (orderType === 'DINE_IN' && tableId) {
+      orderData.tableId = tableId;
+    }
+
+    // Add customer info for delivery/takeaway
+    if (orderType === 'DELIVERY' || orderType === 'TAKEAWAY') {
+      orderData.customerName = customerInfo?.name || null;
+      orderData.customerPhone = customerInfo?.phone || null;
+      
+      if (orderType === 'DELIVERY') {
+        orderData.customerAddress = customerInfo?.address || null;
+      }
+    }
+
+    const order = await prisma.order.create({
+      data: orderData,
+      include: {
+        orderItems: {
+          include: {
+            menuItem: {
+              include: {
+                category: true,
+              },
             },
           },
-          table: true,
         },
+        table: true,
+        user: true,
+      },
+    });
+
+    // Update table status to OCCUPIED for dine-in
+    if (orderType === 'DINE_IN' && tableId) {
+      await prisma.table.update({
+        where: { id: tableId },
+        data: { status: 'OCCUPIED' },
       });
-
-      // Update table status to OCCUPIED
-      if (tableId) {
-        await prisma.table.update({
-          where: { id: tableId },
-          data: { status: 'OCCUPIED' },
-        });
-      }
-
-      return order;
-    } catch (error) {
-      throw error;
     }
-  },
+
+    return order;
+  } catch (error) {
+    throw error;
+  }
+},
 
   async updateOrder(data) {
     try {
@@ -126,32 +162,42 @@ const orderService = {
 
   async recordPayment(data) {
     try {
-      const { orderId, amount, method } = data;
+      const { orderId, amount, method, splitNumber } = data;
 
       const payment = await prisma.payment.create({
         data: {
           orderId,
           amount,
           method,
+          splitNumber: splitNumber || 1,
         },
       });
 
-      // Update order status to COMPLETED
-      await prisma.order.update({
-        where: { id: orderId },
-        data: { status: 'COMPLETED' },
+      // Check if order is fully paid
+      const allPayments = await prisma.payment.findMany({
+        where: { orderId },
       });
 
-      // Update table status to AVAILABLE
+      const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
+
       const order = await prisma.order.findUnique({
         where: { id: orderId },
       });
 
-      if (order?.tableId) {
-        await prisma.table.update({
-          where: { id: order.tableId },
-          data: { status: 'AVAILABLE' },
+      // Update order status to COMPLETED if fully paid
+      if (order && totalPaid >= order.total) {
+        await prisma.order.update({
+          where: { id: orderId },
+          data: { status: 'COMPLETED' },
         });
+
+        // Update table status to AVAILABLE
+        if (order.tableId) {
+          await prisma.table.update({
+            where: { id: order.tableId },
+            data: { status: 'AVAILABLE' },
+          });
+        }
       }
 
       return payment;
@@ -159,7 +205,6 @@ const orderService = {
       throw error;
     }
   },
-
   async updateTableStatus(data) {
     try {
       const { tableId, status } = data;
@@ -193,25 +238,87 @@ const orderService = {
       throw error;
     }
   },
-//for kitchen
-async updateOrderStatus(data) {
-  try {
-    const { orderId, status } = data;
+  //for kitchen
+  async updateOrderStatus(data) {
+    try {
+      const { orderId, status } = data;
 
+      const order = await prisma.order.update({
+        where: { id: orderId },
+        data: { status },
+        include: {
+          orderItems: {
+            include: {
+              menuItem: true,
+            },
+          },
+          table: true,
+        },
+      });
+
+      return order;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async markKOTPrinted(orderId) {
+  try {
     const order = await prisma.order.update({
       where: { id: orderId },
-      data: { status },
+      data: {
+        kotPrinted: true,
+        kotPrintedAt: new Date(),
+      },
       include: {
         orderItems: {
           include: {
-            menuItem: true,
+            menuItem: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
         table: true,
+        user: true,
       },
     });
 
     return order;
+  } catch (error) {
+    throw error;
+  }
+},
+
+async getKOTQueue() {
+  try {
+    const orders = await prisma.order.findMany({
+      where: {
+        kotPrinted: false,
+        status: {
+          in: ['PENDING', 'PREPARING'],
+        },
+      },
+      include: {
+        orderItems: {
+          include: {
+            menuItem: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+        table: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return orders;
   } catch (error) {
     throw error;
   }

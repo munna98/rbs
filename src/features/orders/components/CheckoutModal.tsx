@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { X, Printer } from 'lucide-react';
+import { X, Printer, Split } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   total: number;
   onClose: () => void;
   onSubmit: (data: { method: string; amount: number }) => void;
+  onSplitPayment: () => void; // NEW
   onPrintPreview?: () => void;
   isLoading?: boolean;
 }
@@ -15,6 +16,7 @@ const CheckoutModal = ({
   total,
   onClose,
   onSubmit,
+  onSplitPayment, // NEW
   onPrintPreview,
   isLoading = false,
 }: CheckoutModalProps) => {
@@ -60,10 +62,28 @@ const CheckoutModal = ({
           </div>
         </div>
 
+        {/* Split Payment Button */}
+        <button
+          onClick={onSplitPayment}
+          className="w-full mb-4 flex items-center justify-center gap-2 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold"
+        >
+          <Split className="w-5 h-5" />
+          Split Payment
+        </button>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">OR</span>
+          </div>
+        </div>
+
         {/* Payment Methods */}
         <div className="mb-6">
           <label className="block text-sm font-semibold mb-3">
-            Payment Method
+            Single Payment Method
           </label>
           <div className="space-y-2">
             {['CASH', 'CARD', 'UPI'].map((method) => (
@@ -109,7 +129,7 @@ const CheckoutModal = ({
           {onPrintPreview && (
             <button
               onClick={onPrintPreview}
-              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+              className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
               disabled={isLoading || amount < total}
             >
               <Printer className="w-5 h-5" />
@@ -120,7 +140,7 @@ const CheckoutModal = ({
             disabled={isLoading || amount < total}
             className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Processing...' : 'Complete Payment'}
+            {isLoading ? 'Processing...' : 'Pay Now'}
           </button>
         </div>
       </div>

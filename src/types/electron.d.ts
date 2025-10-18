@@ -28,7 +28,11 @@ export interface ElectronAPI {
   updateTable: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
   deleteTable: (id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   updateTableStatus: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
-
+  transferOrder: (data: any) => Promise<{ success: boolean; error?: string }>;
+  reserveTable: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  mergeTables: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  swapTables: (data: any) => Promise<{ success: boolean; error?: string }>;
+  clearTable: (tableId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
 
   // Kitchen operations
   getKitchenOrders: () => Promise<{ success: boolean; data: any; error?: string }>;
@@ -53,6 +57,12 @@ export interface ElectronAPI {
   openCashDrawer: (printerName: string) => Promise<{ success: boolean; error?: string }>;
   getPrinterSettings: () => Promise<{ success: boolean; data: any; error?: string }>;
   updatePrinterSettings: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+
+  // KOT operations
+  printKOT: (data: any) => Promise<{ success: boolean; error?: string }>;
+  previewKOT: (data: any) => Promise<{ success: boolean; error?: string }>;
+  getKOTQueue: () => Promise<{ success: boolean; data?: any; error?: string }>;
+  markKOTPrinted: (orderId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
 
 }
 

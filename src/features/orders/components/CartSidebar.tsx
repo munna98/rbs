@@ -1,7 +1,6 @@
-import { Trash2, Plus, Minus } from 'lucide-react';
+import { Trash2, Plus, Minus, Store, ShoppingBag, Truck } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { updateCartItem, removeFromCart } from '../orderSlice';
-// import type { CartItem } from '../../../types';
 
 interface CartSidebarProps {
   onCheckout: () => void;
@@ -9,7 +8,9 @@ interface CartSidebarProps {
 
 const CartSidebar = ({ onCheckout }: CartSidebarProps) => {
   const dispatch = useAppDispatch();
-  const { cart, tax, taxRate } = useAppSelector((state) => state.order);
+  const { cart, tax, taxRate, orderType, selectedTable, customerInfo } = useAppSelector(
+    (state) => state.order
+  );
 
   const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
   const total = subtotal + tax;
@@ -22,11 +23,51 @@ const CartSidebar = ({ onCheckout }: CartSidebarProps) => {
     dispatch(removeFromCart(menuItemId));
   };
 
+  const getOrderTypeIcon = () => {
+    switch (orderType) {
+      case 'DINE_IN':
+        return <Store className="w-5 h-5" />;
+      case 'TAKEAWAY':
+        return <ShoppingBag className="w-5 h-5" />;
+      case 'DELIVERY':
+        return <Truck className="w-5 h-5" />;
+    }
+  };
+
+  const getOrderTypeLabel = () => {
+    switch (orderType) {
+      case 'DINE_IN':
+        return selectedTable ? `Table ${selectedTable.tableNumber}` : 'No table selected';
+      case 'TAKEAWAY':
+        return customerInfo?.name || 'Takeaway Order';
+      case 'DELIVERY':
+        return customerInfo?.name || 'Delivery Order';
+    }
+  };
+
+  const canCheckout = () => {
+    if (cart.length === 0) return false;
+    
+    if (orderType === 'DINE_IN' && !selectedTable) return false;
+    
+    if ((orderType === 'TAKEAWAY' || orderType === 'DELIVERY') && !customerInfo?.name) {
+      return false;
+    }
+    
+    if (orderType === 'DELIVERY' && !customerInfo?.address) return false;
+    
+    return true;
+  };
+
   return (
     <div className="w-80 bg-white shadow-lg flex flex-col h-full">
       {/* Header */}
       <div className="bg-blue-600 text-white p-4">
-        <h2 className="text-xl font-bold">Order Cart</h2>
+        <div className="flex items-center gap-2 mb-2">
+          {getOrderTypeIcon()}
+          <h2 className="text-xl font-bold">Order Cart</h2>
+        </div>
+        <p className="text-sm text-blue-100">{getOrderTypeLabel()}</p>
         <p className="text-sm text-blue-100">{cart.length} items</p>
       </div>
 
@@ -106,10 +147,14 @@ const CartSidebar = ({ onCheckout }: CartSidebarProps) => {
 
           <button
             onClick={onCheckout}
-            disabled={cart.length === 0}
+            disabled={!canCheckout()}
             className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
-            Proceed to Checkout
+            {!canCheckout()
+              ? orderType === 'DINE_IN'
+                ? 'Select Table First'
+                : 'Fill Customer Info'
+              : 'Proceed to Checkout'}
           </button>
         </div>
       )}

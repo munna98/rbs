@@ -7,8 +7,10 @@ import { Printer, Save, TestTube, RefreshCw } from 'lucide-react';
 
 const schema = z.object({
   printerName: z.string(),
+  kitchenPrinterName: z.string().optional(), // NEW
   paperWidth: z.coerce.number().min(58).max(80),
   copies: z.coerce.number().min(1).max(5),
+  kotCopies: z.coerce.number().min(1).max(5), // NEW
   enableSound: z.boolean(),
   autoOpenDrawer: z.boolean(),
 });
@@ -174,6 +176,46 @@ const PrinterSettings = () => {
             <p className="text-red-500 text-sm mt-1">{errors.printerName.message}</p>
           )}
         </div>
+
+        {/* Kitchen Printer (Optional) */}
+<div>
+  <label className="block text-sm font-semibold mb-2">
+    Kitchen Printer (Optional)
+  </label>
+  <select
+    {...register('kitchenPrinterName')}
+    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+    disabled={loading}
+  >
+    <option value="">Same as receipt printer</option>
+    {printers.map((printer) => (
+      <option key={printer.name} value={printer.name}>
+        {printer.name}
+      </option>
+    ))}
+  </select>
+  <p className="text-xs text-gray-500 mt-1">
+    Select a separate printer for kitchen orders (KOT)
+  </p>
+</div>
+
+{/* KOT Copies */}
+<div>
+  <label className="block text-sm font-semibold mb-2">
+    KOT Copies
+  </label>
+  <input
+    type="number"
+    {...register('kotCopies')}
+    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+    min="1"
+    max="5"
+    defaultValue="1"
+  />
+  <p className="text-xs text-gray-500 mt-1">
+    Number of KOT copies to print
+  </p>
+</div>
 
         {/* Paper Width */}
         <div>

@@ -32,7 +32,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTable: (data) => ipcRenderer.invoke('table:update', data),
   deleteTable: (id) => ipcRenderer.invoke('table:delete', id),
   updateTableStatus: (data) => ipcRenderer.invoke('table:update-status', data),
-
+  transferOrder: (data) => ipcRenderer.invoke('table:transfer-order', data),
+  reserveTable: (data) => ipcRenderer.invoke('table:reserve', data),
+  mergeTables: (data) => ipcRenderer.invoke('table:merge', data),
+  swapTables: (data) => ipcRenderer.invoke('table:swap', data),
+  clearTable: (tableId) => ipcRenderer.invoke('table:clear', tableId),
+  
   // Kitchen APIs
   getKitchenOrders: () => ipcRenderer.invoke('kitchen:get-orders'),
   updateOrderStatus: (data) => ipcRenderer.invoke('kitchen:update-status', data),
@@ -56,5 +61,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openCashDrawer: (printerName) => ipcRenderer.invoke('print:open-drawer', printerName),
   getPrinterSettings: () => ipcRenderer.invoke('settings:get-printer'),
   updatePrinterSettings: (data) => ipcRenderer.invoke('settings:update-printer', data),
+
+  // KOT APIs
+  printKOT: (data) => ipcRenderer.invoke('kot:print', data),
+  previewKOT: (data) => ipcRenderer.invoke('kot:preview', data),
+  getKOTQueue: () => ipcRenderer.invoke('kot:get-queue'),
+  markKOTPrinted: (orderId) => ipcRenderer.invoke('kot:mark-printed', orderId),
+
 
 });

@@ -26,78 +26,77 @@ const menuService = {
     }
   },
 
-  async createMenuItem(data) {
-    try {
-      // Save image if provided
-      let imagePath = null;
-      if (data.image) {
-        const imageDir = join(app.getPath('userData'), 'images');
-        mkdirSync(imageDir, { recursive: true });
+async createMenuItem(data) {
+  try {
+    let imagePath = null;
+    if (data.image) {
+      const imageDir = join(app.getPath('userData'), 'images');
+      mkdirSync(imageDir, { recursive: true });
 
-        const imageName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-        imagePath = join(imageDir, imageName);
+      const imageName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+      imagePath = join(imageDir, imageName);
 
-        // If it's base64, convert it
-        if (data.image.startsWith('data:image')) {
-          const base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
-          writeFileSync(imagePath, Buffer.from(base64Data, 'base64'));
-        }
-      }
-
-      const menuItem = await prisma.menuItem.create({
-        data: {
-          categoryId: data.categoryId,
-          name: data.name,
-          price: parseFloat(data.price),
-          image: imagePath,
-          available: true,
-        },
-        include: {
-          category: true,
-        },
-      });
-
-      return menuItem;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async updateMenuItem(data) {
-    try {
-      let updateData = {
-        categoryId: data.categoryId,
-        name: data.name,
-        price: parseFloat(data.price),
-        available: data.available,
-      };
-
-      // Handle image update
-      if (data.image && data.image.startsWith('data:image')) {
-        const imageDir = join(app.getPath('userData'), 'images');
-        mkdirSync(imageDir, { recursive: true });
-
-        const imageName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-        const imagePath = join(imageDir, imageName);
-
+      if (data.image.startsWith('data:image')) {
         const base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
         writeFileSync(imagePath, Buffer.from(base64Data, 'base64'));
-        updateData.image = imagePath;
       }
-
-      const menuItem = await prisma.menuItem.update({
-        where: { id: data.id },
-        data: updateData,
-        include: {
-          category: true,
-        },
-      });
-
-      return menuItem;
-    } catch (error) {
-      throw error;
     }
-  },
+
+    const menuItem = await prisma.menuItem.create({
+      data: {
+        categoryId: data.categoryId,
+        name: data.name,
+        code: data.code.toUpperCase(), // NEW: Store code in uppercase
+        price: parseFloat(data.price),
+        image: imagePath,
+        available: true,
+      },
+      include: {
+        category: true,
+      },
+    });
+
+    return menuItem;
+  } catch (error) {
+    throw error;
+  }
+},
+
+async updateMenuItem(data) {
+  try {
+    let updateData = {
+      categoryId: data.categoryId,
+      name: data.name,
+      code: data.code.toUpperCase(), // NEW
+      price: parseFloat(data.price),
+      available: data.available,
+    };
+
+    if (data.image && data.image.startsWith('data:image')) {
+      const imageDir = join(app.getPath('userData'), 'images');
+      mkdirSync(imageDir, { recursive: true });
+
+      const imageName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+      const imagePath = join(imageDir, imageName);
+
+      const base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
+      writeFileSync(imagePath, Buffer.from(base64Data, 'base64'));
+      updateData.image = imagePath;
+    }
+
+    const menuItem = await prisma.menuItem.update({
+      where: { id: data.id },
+      data: updateData,
+      include: {
+        category: true,
+      },
+    });
+
+    return menuItem;
+  } catch (error) {
+    throw error;
+  }
+},
 
   async deleteMenuItem(id) {
     try {

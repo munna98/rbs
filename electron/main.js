@@ -7,6 +7,8 @@ import orderService from './database/orderService.js';
 import tableService from './database/tableService.js';
 import settingsService from './database/settingsService.js';
 import printService from './services/printService.js';
+import kotPrintService from './services/kotPrintService.js';
+
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -219,6 +221,51 @@ ipcMain.handle('table:update-status', async (event, data) => {
   }
 });
 
+ipcMain.handle('table:transfer-order', async (event, data) => {
+  try {
+    await tableService.transferOrder(data);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('table:reserve', async (event, data) => {
+  try {
+    const table = await tableService.reserveTable(data);
+    return { success: true, data: table };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('table:merge', async (event, data) => {
+  try {
+    const result = await tableService.mergeTables(data);
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('table:swap', async (event, data) => {
+  try {
+    await tableService.swapTables(data);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('table:clear', async (event, tableId) => {
+  try {
+    const table = await tableService.clearTable(tableId);
+    return { success: true, data: table };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // ========== ORDER MANAGEMENT ==========
 ipcMain.handle('order:get-tables', async () => {
   try {
@@ -390,6 +437,47 @@ ipcMain.handle('settings:update-printer', async (event, data) => {
   try {
     const settings = await settingsService.updatePrinterSettings(data);
     return { success: true, data: settings };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// KOT IPC Handlers
+ipcMain.handle('kot:print', async (event, data) => {
+  try {
+    await kotPrintService.printKOT(data.kotData, data.printerSettings);
+    
+    // Mark KOT as printed
+    await orderService.markKOTPrinted(data.kotData.orderId);
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('kot:preview', async (event, data) => {
+  try {
+    await kotPrintService.printKOTPreview(data.kotData, data.printerSettings);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('kot:get-queue', async () => {
+  try {
+    const orders = await orderService.getKOTQueue();
+    return { success: true, data: orders };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('kot:mark-printed', async (event, orderId) => {
+  try {
+    const order = await orderService.markKOTPrinted(orderId);
+    return { success: true, data: order };
   } catch (error) {
     return { success: false, error: error.message };
   }

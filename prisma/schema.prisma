@@ -37,6 +37,7 @@ model MenuItem {
   id         String      @id @default(uuid())
   categoryId String      @map("category_id")
   name       String
+  code       String      @unique  // NEW: Quick search code
   price      Float
   image      String?
   available  Boolean     @default(true)
@@ -63,23 +64,41 @@ enum TableStatus {
 }
 
 model Order {
-  id         String       @id @default(uuid())
-  tableId    String?      @map("table_id")
-  userId     String       @map("user_id")
-  status     OrderStatus  @default(PENDING)
-  total      Float
-  createdAt  DateTime     @default(now()) @map("created_at")
-  table      Table?       @relation(fields: [tableId], references: [id])
-  user       User         @relation(fields: [userId], references: [id])
-  orderItems OrderItem[]
-  payments   Payment[]
+  id           String       @id @default(uuid())
+  orderNumber  String       @unique @map("order_number")
+  kotNumber    String?      @unique @map("kot_number") // NEW: Kitchen Order Ticket number
+  kotPrinted   Boolean      @default(false) @map("kot_printed") // NEW
+  kotPrintedAt DateTime?    @map("kot_printed_at") // NEW
+  tableId      String?      @map("table_id")
+  userId       String       @map("user_id")
+  orderType    OrderType    @default(DINE_IN) @map("order_type")
+  customerName String?      @map("customer_name")
+  customerPhone String?     @map("customer_phone")
+  customerAddress String?   @map("customer_address")
+  status       OrderStatus  @default(PENDING)
+  total        Float
+  discount     Float        @default(0)
+  notes        String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  table        Table?       @relation(fields: [tableId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  orderItems   OrderItem[]
+  payments     Payment[]
 
   @@map("orders")
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
 }
 
 enum OrderStatus {
   PENDING
   PREPARING
+  READY      // NEW: For takeaway/delivery
   SERVED
   COMPLETED
   CANCELLED
@@ -92,7 +111,8 @@ model OrderItem {
   quantity   Int
   price      Float
   prepared   Boolean  @default(false)
-  order      Order    @relation(fields: [orderId], references: [id])
+  notes      String?  // NEW: Item-specific notes (e.g., "no onions")
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
 
   @@map("order_items")
@@ -104,8 +124,9 @@ model Payment {
   amount        Float
   method        PaymentMethod
   transactionId String?       @map("transaction_id")
+  splitNumber   Int?          @default(1) @map("split_number") // NEW: For split payments
   createdAt     DateTime      @default(now()) @map("created_at")
-  order         Order         @relation(fields: [orderId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
@@ -114,7 +135,7 @@ enum PaymentMethod {
   CASH
   CARD
   UPI
-  OTHER
+  SPLIT  // NEW: For split payments
 }
 
 model Inventory {
@@ -142,12 +163,14 @@ model RestaurantSettings {
 }
 
 model PrinterSettings {
-  id              String  @id @default(uuid())
-  printerName     String  @map("printer_name")
-  paperWidth      Int     @default(80) @map("paper_width")
-  copies          Int     @default(1)
-  enableSound     Boolean @default(false) @map("enable_sound")
-  autoOpenDrawer  Boolean @default(true) @map("auto_open_drawer")
+  id                String  @id @default(uuid())
+  printerName       String  @map("printer_name")
+  kitchenPrinterName String? @map("kitchen_printer_name") // NEW
+  paperWidth        Int     @default(80) @map("paper_width")
+  copies            Int     @default(1)
+  kotCopies         Int     @default(1) @map("kot_copies") // NEW
+  enableSound       Boolean @default(false) @map("enable_sound")
+  autoOpenDrawer    Boolean @default(true) @map("auto_open_drawer")
 
   @@map("printer_settings")
 }

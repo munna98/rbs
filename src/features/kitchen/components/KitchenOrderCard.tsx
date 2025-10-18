@@ -40,7 +40,7 @@ const KitchenOrderCard = ({
   };
 
   const totalItems = order.orderItems?.length || 0;
-  const preparedItems = order.orderItems?.filter((item) => item.prepared).length || 0;
+  const preparedItems = order.orderItems?.filter((item) => item.prepared === true).length || 0;
   const progress = totalItems > 0 ? (preparedItems / totalItems) * 100 : 0;
 
   return (
@@ -56,19 +56,23 @@ const KitchenOrderCard = ({
               {order.table ? `Table ${order.table.tableNumber}` : 'Takeaway'}
             </h3>
             <p className="text-xs text-gray-600">
-              Order #{order.id.slice(0, 8)}
+              Order #{order.orderNumber || order.id.slice(0, 8)}
             </p>
           </div>
         </div>
         <div className="text-right">
           <div className="flex items-center gap-1 text-gray-600 text-sm">
             <Clock className="w-4 h-4" />
-            <span>{formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}</span>
+            <span>
+              {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+            </span>
           </div>
-          <div className="flex items-center gap-1 text-gray-600 text-xs mt-1">
-            <User className="w-3 h-3" />
-            <span>{order.user?.username}</span>
-          </div>
+          {order.user && (
+            <div className="flex items-center gap-1 text-gray-600 text-xs mt-1">
+              <User className="w-3 h-3" />
+              <span>{order.user.username}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -76,7 +80,9 @@ const KitchenOrderCard = ({
       <div className="mb-3">
         <div className="flex justify-between text-xs text-gray-600 mb-1">
           <span>Progress</span>
-          <span>{preparedItems}/{totalItems} items</span>
+          <span>
+            {preparedItems}/{totalItems} items
+          </span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
@@ -88,29 +94,46 @@ const KitchenOrderCard = ({
 
       {/* Order Items */}
       <div className="space-y-2 mb-4">
-        {order.orderItems?.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between bg-white p-2 rounded border"
-          >
-            <div className="flex items-center gap-2 flex-1">
-              <input
-                type="checkbox"
-                checked={item.prepared || false}
-                onChange={(e) => onItemToggle(item.id, e.target.checked)}
-                className="w-5 h-5 rounded cursor-pointer"
-              />
-              <div className={item.prepared ? 'line-through text-gray-500' : ''}>
-                <span className="font-semibold">{item.quantity}x</span>{' '}
-                <span>{item.menuItem?.name}</span>
+        {order.orderItems && order.orderItems.length > 0 ? (
+          order.orderItems.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between bg-white p-2 rounded border"
+            >
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="checkbox"
+                  checked={item.prepared === true}
+                  onChange={(e) => onItemToggle(item.id, e.target.checked)}
+                  className="w-5 h-5 rounded cursor-pointer"
+                />
+                <div className={item.prepared ? 'line-through text-gray-500' : ''}>
+                  <span className="font-semibold">{item.quantity}x</span>{' '}
+                  <span>{item.menuItem?.name || 'Unknown Item'}</span>
+                  {item.notes && (
+                    <p className="text-xs text-gray-500 italic mt-1">
+                      Note: {item.notes}
+                    </p>
+                  )}
+                </div>
               </div>
+              {item.prepared && <CheckCircle className="w-4 h-4 text-green-600" />}
             </div>
-            {item.prepared && (
-              <CheckCircle className="w-4 h-4 text-green-600" />
-            )}
-          </div>
-        ))}
+          ))
+        ) : (
+          <p className="text-gray-500 text-sm">No items</p>
+        )}
       </div>
+
+      {/* Special Instructions */}
+      {order.notes && (
+        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded p-2">
+          <p className="text-xs font-semibold text-yellow-800">
+            Special Instructions:
+          </p>
+          <p className="text-xs text-yellow-700 mt-1">{order.notes}</p>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-2">
