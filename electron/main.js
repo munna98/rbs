@@ -8,7 +8,7 @@ import tableService from './database/tableService.js';
 import settingsService from './database/settingsService.js';
 import printService from './services/printService.js';
 import kotPrintService from './services/kotPrintService.js';
-
+import workflowService from './database/workflowService.js';
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -478,6 +478,27 @@ ipcMain.handle('kot:mark-printed', async (event, orderId) => {
   try {
     const order = await orderService.markKOTPrinted(orderId);
     return { success: true, data: order };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+
+//IPC handlers 
+
+ipcMain.handle('workflow:get-settings', async () => {
+  try {
+    const settings = await workflowService.getOrderWorkflowSettings();
+    return { success: true, data: settings };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('workflow:update-settings', async (event, data) => {
+  try {
+    const settings = await workflowService.updateOrderWorkflowSettings(data);
+    return { success: true, data: settings };
   } catch (error) {
     return { success: false, error: error.message };
   }

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Users, Store, Bell, Printer } from 'lucide-react';
+import { Users, Store, Bell, Printer, Workflow } from 'lucide-react';
 import UserManagement from '../features/settings/components/UserManagement';
 import RestaurantSettings from '../features/settings/components/RestaurantSettings';
 import PrinterSettings from '../features/settings/components/PrinterSettings';
+import OrderWorkflowSettings from '../features/settings/components/OrderWorkflowSettings';
 
 type TabType = 'users' | 'restaurant' | 'notifications' | 'printer';
 
@@ -11,6 +12,7 @@ const Settings = () => {
 
   const tabs = [
     { id: 'restaurant' as TabType, label: 'Restaurant', icon: Store },
+    { id: 'workflow' as TabType, label: 'Workflow', icon: Workflow },
     { id: 'users' as TabType, label: 'Users', icon: Users },
     { id: 'notifications' as TabType, label: 'Notifications', icon: Bell },
     { id: 'printer' as TabType, label: 'Printer', icon: Printer },
@@ -53,6 +55,7 @@ const Settings = () => {
       <div className="bg-gray-50 rounded-lg p-6">
         {activeTab === 'restaurant' && <RestaurantSettings />}
         {activeTab === 'users' && <UserManagement />}
+        {activeTab === 'workflow' && <OrderWorkflowSettings />} 
         {activeTab === 'notifications' && (
           <div className="text-center py-12 text-gray-500">
             <Bell className="w-16 h-16 mx-auto mb-4 text-gray-400" />

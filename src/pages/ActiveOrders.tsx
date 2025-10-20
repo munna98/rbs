@@ -1,3 +1,5 @@
+// src/pages/ActiveOrders.tsx 
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -6,19 +8,40 @@ import {
   Trash2,
   CheckCircle,
   Search,
-  Filter,
   RefreshCw,
+  CreditCard,
+  Printer,
+  DollarSign,
+  Split,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import type { Order } from '../types';
+import KOTBadge from '../components/KOTBadge';
+import { useWorkflowSettings } from '../hooks/useWorkflowSettings';
 
 const ActiveOrders = () => {
   const navigate = useNavigate();
+  const { settings: workflowSettings } = useWorkflowSettings();
+  
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  
+  // Payment Modal States
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'UPI'>('CASH');
+  
+  // Split Payment States
+  const [splitPaymentModalOpen, setSplitPaymentModalOpen] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<Array<{
+    id: string;
+    method: 'CASH' | 'CARD' | 'UPI';
+    amount: number;
+  }>>([]);
 
   useEffect(() => {
     loadOrders();
@@ -40,6 +63,7 @@ const ActiveOrders = () => {
       }
     } catch (error) {
       console.error('Error loading orders:', error);
+      toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
@@ -83,6 +107,237 @@ const ActiveOrders = () => {
     } catch (error: any) {
       toast.error(error.message || 'Error updating status');
     }
+  };
+
+  // ==========================================
+  // PAYMENT FUNCTIONS
+  // ==========================================
+  
+  const openPaymentModal = (order: Order) => {
+    setSelectedOrder(order);
+    setPaymentAmount(order.total);
+    setPaymentMethod('CASH');
+    setPaymentModalOpen(true);
+  };
+
+  const handleSinglePayment = async () => {
+    if (!selectedOrder) return;
+
+    if (paymentAmount < selectedOrder.total) {
+      // Check if partial payments are allowed
+      if (!workflowSettings?.allowPartialPayment) {
+        toast.error('Partial payments are not allowed');
+        return;
+      }
+    }
+
+    try {
+      const result = await window.electronAPI.recordPayment({
+        orderId: selectedOrder.id,
+        amount: paymentAmount,
+        method: paymentMethod,
+      });
+
+      if (result.success) {
+        toast.success('Payment recorded successfully!');
+        
+        // Print receipt
+        await printReceipt(
+          selectedOrder, 
+          paymentAmount, 
+          paymentMethod, 
+          Math.max(0, paymentAmount - selectedOrder.total)
+        );
+        
+        setPaymentModalOpen(false);
+        loadOrders();
+      } else {
+        toast.error(result.error || 'Payment failed');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error processing payment');
+    }
+  };
+
+  const openSplitPaymentModal = (order: Order) => {
+    if (!workflowSettings?.allowSplitPayment) {
+      toast.error('Split payment is not enabled');
+      return;
+    }
+
+    setSelectedOrder(order);
+    setSplitPayments([
+      {
+        id: crypto.randomUUID(),
+        method: 'CASH',
+        amount: order.total,
+      },
+    ]);
+    setSplitPaymentModalOpen(true);
+  };
+
+  const handleAddSplitPayment = () => {
+    if (!selectedOrder) return;
+    
+    const totalPaid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
+    const remaining = selectedOrder.total - totalPaid;
+    
+    if (remaining <= 0) {
+      toast.error('Total amount already covered');
+      return;
+    }
+
+    setSplitPayments([
+      ...splitPayments,
+      {
+        id: crypto.randomUUID(),
+        method: 'CASH',
+        amount: remaining,
+      },
+    ]);
+  };
+
+  const handleRemoveSplitPayment = (id: string) => {
+    if (splitPayments.length === 1) {
+      toast.error('At least one payment method required');
+      return;
+    }
+    setSplitPayments(splitPayments.filter(p => p.id !== id));
+  };
+
+  const handleSplitPaymentSubmit = async () => {
+    if (!selectedOrder) return;
+
+    const totalPaid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
+    
+    if (totalPaid < selectedOrder.total) {
+      toast.error(`Remaining amount: ₹${(selectedOrder.total - totalPaid).toFixed(2)}`);
+      return;
+    }
+
+    if (totalPaid > selectedOrder.total) {
+      toast.error('Total paid exceeds bill amount');
+      return;
+    }
+
+    try {
+      // Record each payment
+      for (let i = 0; i < splitPayments.length; i++) {
+        const payment = splitPayments[i];
+        const result = await window.electronAPI.recordPayment({
+          orderId: selectedOrder.id,
+          amount: payment.amount,
+          method: payment.method,
+          splitNumber: i + 1,
+        });
+
+        if (!result.success) {
+          throw new Error(`Payment ${i + 1} failed: ${result.error}`);
+        }
+      }
+
+      toast.success(`Payment completed with ${splitPayments.length} methods!`);
+      
+      // Print receipt showing split payments
+      await printReceiptWithSplit(selectedOrder, splitPayments);
+      
+      setSplitPaymentModalOpen(false);
+      loadOrders();
+    } catch (error: any) {
+      toast.error(error.message || 'Error processing split payment');
+    }
+  };
+
+  const printReceipt = async (
+    order: Order,
+    amountPaid: number,
+    method: string,
+    change: number
+  ) => {
+    try {
+      const restaurantResult = await window.electronAPI.getRestaurantSettings();
+      const printerResult = await window.electronAPI.getPrinterSettings();
+
+      if (restaurantResult.success && printerResult.success) {
+        const receiptData = {
+          orderId: order.id,
+          orderNumber: order.orderNumber || order.id.slice(0, 8),
+          tableNumber: order.table?.tableNumber,
+          items: order.orderItems?.map(item => ({
+            name: item.menuItem?.name || 'Unknown',
+            quantity: item.quantity,
+            price: item.price,
+            total: item.price * item.quantity,
+          })) || [],
+          subtotal: order.total / 1.05,
+          tax: order.total * 0.05,
+          taxRate: 5,
+          total: order.total,
+          paymentMethod: method,
+          amountPaid: amountPaid,
+          change: change,
+          cashier: 'Current User',
+          date: new Date(),
+          restaurantInfo: restaurantResult.data,
+        };
+
+        await window.electronAPI.printReceipt({
+          receiptData,
+          printerSettings: printerResult.data,
+        });
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Receipt print failed');
+    }
+  };
+
+  const printReceiptWithSplit = async (
+    order: Order,
+    payments: Array<{ method: string; amount: number }>
+  ) => {
+    try {
+      const restaurantResult = await window.electronAPI.getRestaurantSettings();
+      const printerResult = await window.electronAPI.getPrinterSettings();
+
+      if (restaurantResult.success && printerResult.success) {
+        const receiptData = {
+          orderId: order.id,
+          orderNumber: order.orderNumber || order.id.slice(0, 8),
+          tableNumber: order.table?.tableNumber,
+          items: order.orderItems?.map(item => ({
+            name: item.menuItem?.name || 'Unknown',
+            quantity: item.quantity,
+            price: item.price,
+            total: item.price * item.quantity,
+          })) || [],
+          subtotal: order.total / 1.05,
+          tax: order.total * 0.05,
+          taxRate: 5,
+          total: order.total,
+          paymentMethod: 'SPLIT',
+          amountPaid: order.total,
+          change: 0,
+          cashier: 'Current User',
+          date: new Date(),
+          restaurantInfo: restaurantResult.data,
+          splitPayments: payments,
+        };
+
+        await window.electronAPI.printReceipt({
+          receiptData,
+          printerSettings: printerResult.data,
+        });
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Receipt print failed');
+    }
+  };
+
+  const handlePrintReceiptOnly = async (order: Order) => {
+    await printReceipt(order, order.total, 'COMPLETED', 0);
+    toast.success('Receipt printed');
   };
 
   // Filter orders
@@ -132,7 +387,7 @@ const ActiveOrders = () => {
       case 'READY':
         return 'SERVED';
       case 'SERVED':
-        return 'COMPLETED';
+        return null; // Payment required before COMPLETED
       default:
         return null;
     }
@@ -184,7 +439,7 @@ const ActiveOrders = () => {
         ))}
       </div>
 
-      {/* Search & Filter */}
+      {/* Search */}
       <div className="flex gap-4 mb-6">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -249,13 +504,20 @@ const ActiveOrders = () => {
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
-                        order.status
-                      )}`}
-                    >
-                      {order.status}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        {order.status}
+                      </span>
+                      <KOTBadge
+                        kotPrinted={order.kotPrinted || false}
+                        kotNumber={order.kotNumber}
+                        size="sm"
+                      />
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
@@ -297,27 +559,63 @@ const ActiveOrders = () => {
 
                   {/* Actions */}
                   <div className="flex gap-2">
+                    {/* Edit Button */}
                     <button
                       onClick={() => navigate(`/orders/edit/${order.id}`)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition text-sm"
+                      className="flex items-center justify-center gap-1 bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition text-sm"
+                      title="Edit Order"
                     >
                       <Edit className="w-4 h-4" />
-                      Edit
                     </button>
 
+                    {/* Next Status Button */}
                     {nextStatus && (
                       <button
                         onClick={() => handleStatusChange(order.id, nextStatus)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm"
+                        className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition text-sm"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        {nextStatus === 'COMPLETED' ? 'Complete' : nextStatus}
+                        {nextStatus}
                       </button>
                     )}
 
+                    {/* Payment Button (Only for SERVED status) */}
+                    {order.status === 'SERVED' && (
+                      <>
+                        <button
+                          onClick={() => openPaymentModal(order)}
+                          className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm font-semibold"
+                        >
+                          <DollarSign className="w-4 h-4" />
+                          Pay
+                        </button>
+                        
+                        {workflowSettings?.allowSplitPayment && (
+                          <button
+                            onClick={() => openSplitPaymentModal(order)}
+                            className="flex items-center justify-center gap-1 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition text-sm"
+                            title="Split Payment"
+                          >
+                            <Split className="w-4 h-4" />
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {/* Print Receipt */}
+                    <button
+                      onClick={() => handlePrintReceiptOnly(order)}
+                      className="flex items-center justify-center gap-1 bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition text-sm"
+                      title="Print Receipt"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
+
+                    {/* Cancel Button */}
                     <button
                       onClick={() => handleDeleteOrder(order.id)}
                       className="px-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                      title="Cancel Order"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -326,6 +624,175 @@ const ActiveOrders = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Single Payment Modal */}
+      {paymentModalOpen && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-2xl font-bold mb-4">Take Payment</h2>
+            
+            <div className="mb-4">
+              <p className="text-gray-600">Order: {selectedOrder.orderNumber}</p>
+              <p className="text-3xl font-bold text-blue-600">₹{selectedOrder.total.toFixed(2)}</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-semibold mb-2">Payment Method</label>
+              <div className="space-y-2">
+                {['CASH', 'CARD', 'UPI'].map((method) => (
+                  <label key={method} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="payment"
+                      value={method}
+                      checked={paymentMethod === method}
+                      onChange={(e) => setPaymentMethod(e.target.value as any)}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-medium">{method}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold mb-2">Amount Received (₹)</label>
+              <input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                step="0.01"
+                min={workflowSettings?.allowPartialPayment ? 0 : selectedOrder.total}
+              />
+              {paymentAmount > selectedOrder.total && (
+                <p className="text-sm text-green-600 mt-1">
+                  Change: ₹{(paymentAmount - selectedOrder.total).toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPaymentModalOpen(false)}
+                className="flex-1 px-4 py-3 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSinglePayment}
+                disabled={paymentAmount < selectedOrder.total && !workflowSettings?.allowPartialPayment}
+                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 font-semibold"
+              >
+                Complete Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Split Payment Modal */}
+      {splitPaymentModalOpen && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold">Split Payment</h2>
+              <p className="text-gray-600">Order: {selectedOrder.orderNumber}</p>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">Total:</span>
+                  <span className="text-2xl font-bold text-blue-600">
+                    ₹{selectedOrder.total.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span>Total Paid:</span>
+                  <span className="font-semibold">
+                    ₹{splitPayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span>Remaining:</span>
+                  <span className={`font-semibold ${
+                    (selectedOrder.total - splitPayments.reduce((sum, p) => sum + p.amount, 0)) > 0
+                      ? 'text-red-600'
+                      : 'text-green-600'
+                  }`}>
+                    ₹{Math.abs(selectedOrder.total - splitPayments.reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                {splitPayments.map((payment, index) => (
+                  <div key={payment.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <span className="font-bold text-blue-600 w-8">#{index + 1}</span>
+                    <select
+                      value={payment.method}
+                      onChange={(e) => {
+                        const updated = [...splitPayments];
+                        updated[index].method = e.target.value as any;
+                        setSplitPayments(updated);
+                      }}
+                      className="px-3 py-2 border rounded-lg"
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="CARD">Card</option>
+                      <option value="UPI">UPI</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={payment.amount}
+                      onChange={(e) => {
+                        const updated = [...splitPayments];
+                        updated[index].amount = parseFloat(e.target.value) || 0;
+                        setSplitPayments(updated);
+                      }}
+                      className="flex-1 px-3 py-2 border rounded-lg"
+                      step="0.01"
+                      min="0"
+                    />
+                    {splitPayments.length > 1 && (
+                      <button
+                        onClick={() => handleRemoveSplitPayment(payment.id)}
+                        className="text-red-600 hover:bg-red-50 p-2 rounded"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={handleAddSplitPayment}
+                className="w-full mb-4 border-2 border-dashed border-gray-300 rounded-lg py-3 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition"
+              >
+                + Add Payment Method
+              </button>
+            </div>
+
+            <div className="p-6 border-t flex gap-3">
+              <button
+                onClick={() => setSplitPaymentModalOpen(false)}
+                className="flex-1 px-4 py-3 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSplitPaymentSubmit}
+                disabled={splitPayments.reduce((sum, p) => sum + p.amount, 0) !== selectedOrder.total}
+                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 font-semibold"
+              >
+                Complete Split Payment
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

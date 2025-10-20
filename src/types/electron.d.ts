@@ -64,6 +64,10 @@ export interface ElectronAPI {
   getKOTQueue: () => Promise<{ success: boolean; data?: any; error?: string }>;
   markKOTPrinted: (orderId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
 
+  // Workflow Settings
+  getOrderWorkflowSettings: () => Promise<{ success: boolean; data: any; error?: string }>;
+  updateOrderWorkflowSettings: (data: any) => Promise<{ success: boolean; data: any; error?: string }>;
+
 }
 
 declare global {

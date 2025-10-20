@@ -68,5 +68,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getKOTQueue: () => ipcRenderer.invoke('kot:get-queue'),
   markKOTPrinted: (orderId) => ipcRenderer.invoke('kot:mark-printed', orderId),
 
-
+  // Workflow Settings APIs
+  getOrderWorkflowSettings: () => ipcRenderer.invoke('workflow:get-settings'),
+  updateOrderWorkflowSettings: (data) => ipcRenderer.invoke('workflow:update-settings', data),
 });

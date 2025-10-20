@@ -174,3 +174,45 @@ model PrinterSettings {
 
   @@map("printer_settings")
 }
+
+model OrderWorkflowSettings {
+  id                          String   @id @default(uuid())
+  
+  // Workflow Mode
+  orderWorkflowMode           String   @default("FULL_SERVICE") // FULL_SERVICE, QUICK_SERVICE, CUSTOM
+  
+  // Order Creation
+  requirePaymentAtOrder       Boolean  @default(false)
+  autoMarkServedWhenPaid      Boolean  @default(false)
+  
+  // KOT Settings
+  autoPrintKOT                Boolean  @default(true)
+  requireKOTPrintConfirmation Boolean  @default(false)
+  kotPrintDelay               Int      @default(0) // in seconds
+  
+  // Kitchen Display
+  autoStartPreparing          Boolean  @default(false)
+  enableItemWisePreparing     Boolean  @default(true)
+  
+  // Payment Settings
+  allowPartialPayment         Boolean  @default(true)
+  allowSplitPayment           Boolean  @default(true)
+  requirePaymentForServed     Boolean  @default(false)
+  
+  // Table Management
+  autoOccupyTableOnOrder      Boolean  @default(true)
+  autoFreeTableOnPayment      Boolean  @default(true)
+  allowMultipleOrdersPerTable Boolean  @default(false)
+  
+  // Order Status Flow
+  orderStatusFlow             String   @default("PENDING_PREPARING_SERVED_COMPLETED")
+  
+  // Notifications
+  notifyKitchenOnNewOrder     Boolean  @default(true)
+  notifyWaiterOnReady         Boolean  @default(true)
+  playOrderSound              Boolean  @default(true)
+  
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  @@map("order_workflow_settings")
+}
