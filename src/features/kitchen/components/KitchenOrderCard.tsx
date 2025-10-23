@@ -1,3 +1,4 @@
+// src/features/kitchen/components/KitchenOrderCard.tsx - UPDATED WITH WORKFLOW
 import { Clock, User, CheckCircle, ChefHat, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Order } from '../../../types';
@@ -6,12 +7,14 @@ interface KitchenOrderCardProps {
   order: Order;
   onStatusChange: (orderId: string, status: string) => void;
   onItemToggle: (orderItemId: string, prepared: boolean) => void;
+  showItemCheckboxes?: boolean; // ✅ NEW: Controlled by workflow setting
 }
 
 const KitchenOrderCard = ({
   order,
   onStatusChange,
   onItemToggle,
+  showItemCheckboxes = true, // ✅ Default to true for backward compatibility
 }: KitchenOrderCardProps) => {
   const getStatusColor = () => {
     switch (order.status) {
@@ -76,21 +79,23 @@ const KitchenOrderCard = ({
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-xs text-gray-600 mb-1">
-          <span>Progress</span>
-          <span>
-            {preparedItems}/{totalItems} items
-          </span>
+      {/* ✅ Progress Bar - Only show if item-wise tracking is enabled */}
+      {showItemCheckboxes && (
+        <div className="mb-3">
+          <div className="flex justify-between text-xs text-gray-600 mb-1">
+            <span>Progress</span>
+            <span>
+              {preparedItems}/{totalItems} items
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-green-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-green-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-      </div>
+      )}
 
       {/* Order Items */}
       <div className="space-y-2 mb-4">
@@ -101,13 +106,17 @@ const KitchenOrderCard = ({
               className="flex items-center justify-between bg-white p-2 rounded border"
             >
               <div className="flex items-center gap-2 flex-1">
-                <input
-                  type="checkbox"
-                  checked={item.prepared === true}
-                  onChange={(e) => onItemToggle(item.id, e.target.checked)}
-                  className="w-5 h-5 rounded cursor-pointer"
-                />
-                <div className={item.prepared ? 'line-through text-gray-500' : ''}>
+                {/* ✅ Conditionally render checkbox based on workflow setting */}
+                {showItemCheckboxes && (
+                  <input
+                    type="checkbox"
+                    checked={item.prepared === true}
+                    onChange={(e) => onItemToggle(item.id, e.target.checked)}
+                    className="w-5 h-5 rounded cursor-pointer"
+                  />
+                )}
+                
+                <div className={item.prepared && showItemCheckboxes ? 'line-through text-gray-500' : ''}>
                   <span className="font-semibold">{item.quantity}x</span>{' '}
                   <span>{item.menuItem?.name || 'Unknown Item'}</span>
                   {item.notes && (
@@ -117,7 +126,9 @@ const KitchenOrderCard = ({
                   )}
                 </div>
               </div>
-              {item.prepared && <CheckCircle className="w-4 h-4 text-green-600" />}
+              {item.prepared && showItemCheckboxes && (
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              )}
             </div>
           ))
         ) : (
@@ -145,14 +156,32 @@ const KitchenOrderCard = ({
             Start Preparing
           </button>
         )}
-        {order.status === 'PREPARING' && preparedItems === totalItems && (
-          <button
-            onClick={() => onStatusChange(order.id, 'SERVED')}
-            className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-semibold"
-          >
-            Mark as Served
-          </button>
+        
+        {/* ✅ Show completion button based on workflow setting */}
+        {order.status === 'PREPARING' && (
+          <>
+            {showItemCheckboxes ? (
+              // If item-wise tracking enabled, require all items prepared
+              preparedItems === totalItems && (
+                <button
+                  onClick={() => onStatusChange(order.id, 'SERVED')}
+                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-semibold"
+                >
+                  Mark as Served
+                </button>
+              )
+            ) : (
+              // If item-wise tracking disabled, allow immediate completion
+              <button
+                onClick={() => onStatusChange(order.id, 'SERVED')}
+                className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-semibold"
+              >
+                Mark as Served
+              </button>
+            )}
+          </>
         )}
+        
         {order.status === 'SERVED' && (
           <div className="flex-1 bg-green-600 text-white py-2 rounded-lg text-center font-semibold">
             ✓ Completed

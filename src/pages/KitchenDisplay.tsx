@@ -1,3 +1,4 @@
+// src/pages/KitchenDisplay.tsx - UPDATED WITH WORKFLOW INTEGRATION
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -9,11 +10,14 @@ import {
 import KitchenOrderCard from '../features/kitchen/components/KitchenOrderCard';
 import KitchenStats from '../features/kitchen/components/KitchenStats';
 import KOTBadge from '../components/KOTBadge';
+import { useOrderWorkflow } from '../hooks/useOrderWorkflow'; // ✅ NEW
 import toast from 'react-hot-toast';
 import { RefreshCw, Filter } from 'lucide-react';
 
 const KitchenDisplay = () => {
   const dispatch = useAppDispatch();
+  const workflow = useOrderWorkflow(); // ✅ NEW: Use workflow hook
+  
   const { orders, activeOrders, loading, filterStatus } = useAppSelector(
     (state) => state.kitchen
   );
@@ -43,6 +47,12 @@ const KitchenDisplay = () => {
   };
 
   const handleItemToggle = async (orderItemId: string, prepared: boolean) => {
+    // ✅ Check if item-wise tracking is enabled
+    if (!workflow.enablesItemWisePreparing()) {
+      toast.error('Item-wise preparation tracking is disabled');
+      return;
+    }
+
     try {
       await dispatch(markItemPrepared({ orderItemId, prepared })).unwrap();
       toast.success(prepared ? 'Item marked as prepared' : 'Item unmarked');
@@ -68,6 +78,9 @@ const KitchenDisplay = () => {
   const preparingCount = orders.filter((o) => o.status === 'PREPARING').length;
   const servedCount = orders.filter((o) => o.status === 'SERVED').length;
 
+  // ✅ Get workflow setting for item-wise preparation
+  const showItemCheckboxes = workflow.enablesItemWisePreparing();
+
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
       {/* Header */}
@@ -75,7 +88,15 @@ const KitchenDisplay = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold">Kitchen Display System</h1>
-            <p className="text-gray-600 mt-1">Manage and track order preparation</p>
+            <p className="text-gray-600 mt-1">
+              Manage and track order preparation
+              {/* ✅ Show workflow mode */}
+              {workflow.settings && (
+                <span className="ml-2 text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                  {showItemCheckboxes ? 'Item-wise Tracking: ON' : 'Item-wise Tracking: OFF'}
+                </span>
+              )}
+            </p>
           </div>
           <button
             onClick={handleRefresh}
@@ -119,6 +140,17 @@ const KitchenDisplay = () => {
         </div>
       </div>
 
+      {/* Info Box - Show when item-wise tracking is disabled */}
+      {!showItemCheckboxes && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            ℹ️ <strong>Note:</strong> Item-wise preparation tracking is currently disabled. 
+            Orders can be marked as complete without checking individual items. 
+            Enable it in Settings → Workflow → Kitchen Display Settings.
+          </p>
+        </div>
+      )}
+
       {/* Orders Grid */}
       {loading && orders.length === 0 ? (
         <div className="flex items-center justify-center h-64">
@@ -141,8 +173,9 @@ const KitchenDisplay = () => {
                 order={order}
                 onStatusChange={handleStatusChange}
                 onItemToggle={handleItemToggle}
+                showItemCheckboxes={showItemCheckboxes} // ✅ Pass workflow setting
               />
-              
+
               {/* KOT Badge */}
               <div className="absolute top-2 right-2">
                 <KOTBadge
