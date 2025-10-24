@@ -1,50 +1,27 @@
-import { useState, useEffect } from 'react';
-
-export interface WorkflowSettings {
-  orderWorkflowMode: 'FULL_SERVICE' | 'QUICK_SERVICE' | 'CUSTOM';
-  requirePaymentAtOrder: boolean;
-  autoMarkServedWhenPaid: boolean;
-  autoPrintKOT: boolean;
-  requireKOTPrintConfirmation: boolean;
-  kotPrintDelay: number;
-  autoStartPreparing: boolean;
-  enableItemWisePreparing: boolean;
-  allowPartialPayment: boolean;
-  allowSplitPayment: boolean;
-  requirePaymentForServed: boolean;
-  autoOccupyTableOnOrder: boolean;
-  autoFreeTableOnPayment: boolean;
-  allowMultipleOrdersPerTable: boolean;
-  orderStatusFlow: string;
-  notifyKitchenOnNewOrder: boolean;
-  notifyWaiterOnReady: boolean;
-  playOrderSound: boolean;
-}
+import { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchWorkflowSettings } from '../features/settings/settingsSlice';
+import type { WorkflowSettings } from '../features/settings/settingsSlice';
 
 export const useWorkflowSettings = () => {
-  const [settings, setSettings] = useState<WorkflowSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { workflowSettings: settings, loading } = useAppSelector(
+    (state) => state.settings
+  );
 
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const result = await window.electronAPI.getOrderWorkflowSettings();
-      if (result.success) {
-        setSettings(result.data);
-      }
-    } catch (error) {
-      console.error('Error loading workflow settings:', error);
-    } finally {
-      setLoading(false);
+    // ✅ Load settings if not already loaded
+    if (!settings) {
+      dispatch(fetchWorkflowSettings());
     }
-  };
+  }, [dispatch, settings]);
 
   const reload = () => {
-    loadSettings();
+    dispatch(fetchWorkflowSettings());
   };
 
   return { settings, loading, reload };
 };
+
+// Keep the export for backward compatibility
+export type { WorkflowSettings };

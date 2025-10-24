@@ -1,10 +1,16 @@
-// src/features/settings/components/OrderWorkflowSettings.tsx
+// src/features/settings/components/OrderWorkflowSettings.tsx - COMPLETE UPDATED VERSION WITH REDUX
+
 import { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { Settings, Save, RefreshCw, Workflow } from 'lucide-react';
+import { Save, RefreshCw, Workflow } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { 
+  fetchWorkflowSettings, 
+  updateWorkflowSettings 
+} from '../settingsSlice';
 
 const schema = z.object({
   // Order Creation Settings
@@ -49,7 +55,11 @@ type FormInput = z.input<typeof schema>;
 type FormOutput = z.output<typeof schema>;
 
 const OrderWorkflowSettings = () => {
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const { workflowSettings, loading: reduxLoading } = useAppSelector(
+    (state) => state.settings
+  );
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -85,33 +95,23 @@ const OrderWorkflowSettings = () => {
   const selectedMode = watch('orderWorkflowMode');
   const requirePaymentAtOrder = watch('requirePaymentAtOrder');
 
+  // Load settings from Redux on mount
   useEffect(() => {
-    loadSettings();
-  }, []);
+    dispatch(fetchWorkflowSettings());
+  }, [dispatch]);
 
-  const loadSettings = async () => {
-    setLoading(true);
-    try {
-      const result = await window.electronAPI.getOrderWorkflowSettings();
-      if (result.success) {
-        reset(result.data);
-      }
-    } catch (error: any) {
-      toast.error('Error loading workflow settings');
-    } finally {
-      setLoading(false);
+  // Update form when Redux settings change
+  useEffect(() => {
+    if (workflowSettings) {
+      reset(workflowSettings);
     }
-  };
+  }, [workflowSettings, reset]);
 
   const onSubmit: SubmitHandler<FormOutput> = async (data) => {
     setIsSubmitting(true);
     try {
-      const result = await window.electronAPI.updateOrderWorkflowSettings(data);
-      if (result.success) {
-        toast.success('Workflow settings saved successfully');
-      } else {
-        toast.error(result.error || 'Error saving settings');
-      }
+      await dispatch(updateWorkflowSettings(data)).unwrap();
+      toast.success('✅ Workflow settings saved successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Error saving settings');
     } finally {
@@ -120,8 +120,8 @@ const OrderWorkflowSettings = () => {
   };
 
   const handleReset = () => {
-    if (window.confirm('Reset to default settings?')) {
-      loadSettings();
+    if (window.confirm('Reset to saved settings?')) {
+      dispatch(fetchWorkflowSettings());
       toast.success('Settings reset to saved values');
     }
   };
@@ -155,7 +155,7 @@ const OrderWorkflowSettings = () => {
     }
   };
 
-  if (loading) {
+  if (reduxLoading && !workflowSettings) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -561,6 +561,7 @@ const OrderWorkflowSettings = () => {
           <li>Full Service mode is recommended for dine-in restaurants</li>
           <li>Quick Service mode works best for fast food or takeaway</li>
           <li>Custom mode allows maximum flexibility for unique needs</li>
+          <li>Settings are applied immediately after saving</li>
         </ul>
       </div>
     </div>

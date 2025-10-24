@@ -11,9 +11,36 @@ export interface RestaurantSettings {
   gstNumber?: string;
 }
 
+export interface WorkflowSettings {
+  orderWorkflowMode: 'FULL_SERVICE' | 'QUICK_SERVICE' | 'CUSTOM';
+  requirePaymentAtOrder: boolean;
+  autoMarkServedWhenPaid: boolean;
+  autoPrintKOT: boolean;
+  requireKOTPrintConfirmation: boolean;
+  kotPrintDelay: number;
+  autoStartPreparing: boolean;
+  enableItemWisePreparing: boolean;
+  allowPartialPayment: boolean;
+  allowSplitPayment: boolean;
+  requirePaymentForServed: boolean;
+  autoOccupyTableOnOrder: boolean;
+  autoFreeTableOnPayment: boolean;
+  allowMultipleOrdersPerTable: boolean;
+  orderStatusFlow:
+    | 'PENDING_PREPARING_SERVED_COMPLETED'
+    | 'PENDING_READY_SERVED_COMPLETED'
+    | 'PENDING_COMPLETED'
+    | 'CUSTOM';
+  notifyKitchenOnNewOrder: boolean;
+  notifyWaiterOnReady: boolean;
+  playOrderSound: boolean;
+}
+
+
 export interface SettingsState {
   users: User[];
   restaurantSettings: RestaurantSettings;
+  workflowSettings: WorkflowSettings | null;
   loading: boolean;
   error: string | null;
 }
@@ -29,6 +56,7 @@ const initialState: SettingsState = {
     currency: 'INR',
     gstNumber: '',
   },
+  workflowSettings: null,
   loading: false,
   error: null,
 };
@@ -112,6 +140,32 @@ export const updateRestaurantSettings = createAsyncThunk(
   }
 );
 
+export const fetchWorkflowSettings = createAsyncThunk(
+  'settings/fetchWorkflowSettings',
+  async (_, { rejectWithValue }) => {
+    try {
+      const result = await window.electronAPI.getOrderWorkflowSettings();
+      if (result.success) return result.data;
+      return rejectWithValue(result.error);
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const updateWorkflowSettings = createAsyncThunk(
+  'settings/updateWorkflowSettings',
+  async (data: WorkflowSettings, { rejectWithValue }) => {
+    try {
+      const result = await window.electronAPI.updateOrderWorkflowSettings(data);
+      if (result.success) return result.data;
+      return rejectWithValue(result.error);
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 const settingsSlice = createSlice({
   name: 'settings',
   initialState,
@@ -168,6 +222,22 @@ const settingsSlice = createSlice({
       // Update Restaurant Settings
       .addCase(updateRestaurantSettings.fulfilled, (state, action) => {
         state.restaurantSettings = action.payload;
+      })
+       // Fetch Workflow Settings
+      .addCase(fetchWorkflowSettings.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchWorkflowSettings.fulfilled, (state, action) => {
+        state.loading = false;
+        state.workflowSettings = action.payload;
+      })
+      .addCase(fetchWorkflowSettings.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Update Workflow Settings
+      .addCase(updateWorkflowSettings.fulfilled, (state, action) => {
+        state.workflowSettings = action.payload;
       });
   },
 });
