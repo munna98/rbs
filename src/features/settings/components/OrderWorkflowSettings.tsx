@@ -1,4 +1,4 @@
-// src/features/settings/components/OrderWorkflowSettings.tsx - COMPLETE UPDATED VERSION WITH REDUX
+// src/features/settings/components/OrderWorkflowSettings.tsx - FIXED VERSION
 
 import { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
@@ -13,39 +13,26 @@ import {
 } from '../settingsSlice';
 
 const schema = z.object({
-  // Order Creation Settings
   orderWorkflowMode: z.enum(['FULL_SERVICE', 'QUICK_SERVICE', 'CUSTOM']),
   requirePaymentAtOrder: z.boolean(),
   autoMarkServedWhenPaid: z.boolean(),
-  
-  // KOT Settings
   autoPrintKOT: z.boolean(),
   requireKOTPrintConfirmation: z.boolean(),
-  kotPrintDelay: z.coerce.number().min(0).max(60), // seconds
-  
-  // Kitchen Display Settings
-  autoStartPreparing: z.boolean(), // Auto change PENDING → PREPARING
-  enableItemWisePreparing: z.boolean(), // Track individual item preparation
-  
-  // Payment Settings
+  kotPrintDelay: z.coerce.number().min(0).max(60),
+  autoStartPreparing: z.boolean(),
+  enableItemWisePreparing: z.boolean(),
   allowPartialPayment: z.boolean(),
   allowSplitPayment: z.boolean(),
-  requirePaymentForServed: z.boolean(), // Can't mark SERVED without payment
-  
-  // Table Management
+  requirePaymentForServed: z.boolean(),
   autoOccupyTableOnOrder: z.boolean(),
   autoFreeTableOnPayment: z.boolean(),
   allowMultipleOrdersPerTable: z.boolean(),
-  
-  // Order Status Flow
   orderStatusFlow: z.enum([
     'PENDING_PREPARING_SERVED_COMPLETED',
     'PENDING_READY_SERVED_COMPLETED',
-    'PENDING_COMPLETED', // Quick service
+    'PENDING_COMPLETED',
     'CUSTOM'
   ]),
-  
-  // Notifications
   notifyKitchenOnNewOrder: z.boolean(),
   notifyWaiterOnReady: z.boolean(),
   playOrderSound: z.boolean(),
@@ -62,12 +49,71 @@ const OrderWorkflowSettings = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ✅ WORKFLOW MODE PRESETS - Now with all settings
+  const workflowModes = {
+    FULL_SERVICE: {
+      name: 'Full Service Restaurant',
+      description: 'Complete workflow: Order → Kitchen → Serve → Payment',
+      icon: '🍽️',
+      settings: {
+        requirePaymentAtOrder: false,
+        autoMarkServedWhenPaid: false,
+        autoPrintKOT: true,
+        requireKOTPrintConfirmation: false,
+        kotPrintDelay: 0,
+        autoStartPreparing: false,
+        enableItemWisePreparing: true,
+        allowPartialPayment: true,
+        allowSplitPayment: true,
+        requirePaymentForServed: false,
+        autoOccupyTableOnOrder: true,
+        autoFreeTableOnPayment: true,
+        allowMultipleOrdersPerTable: false,
+        orderStatusFlow: 'PENDING_PREPARING_SERVED_COMPLETED' as const,
+        notifyKitchenOnNewOrder: true,
+        notifyWaiterOnReady: true,
+        playOrderSound: true,
+      }
+    },
+    QUICK_SERVICE: {
+      name: 'Quick Service / Fast Food',
+      description: 'Payment first, then preparation: Payment → Kitchen → Serve',
+      icon: '🍔',
+      settings: {
+        requirePaymentAtOrder: true,
+        autoMarkServedWhenPaid: true,
+        autoPrintKOT: true,
+        requireKOTPrintConfirmation: false,
+        kotPrintDelay: 0,
+        autoStartPreparing: true,
+        enableItemWisePreparing: false, // Quick service doesn't track items
+        allowPartialPayment: false, // Must pay in full upfront
+        allowSplitPayment: false,
+        requirePaymentForServed: true,
+        autoOccupyTableOnOrder: true,
+        autoFreeTableOnPayment: true,
+        allowMultipleOrdersPerTable: false,
+        orderStatusFlow: 'PENDING_COMPLETED' as const,
+        notifyKitchenOnNewOrder: true,
+        notifyWaiterOnReady: false,
+        playOrderSound: true,
+      }
+    },
+    CUSTOM: {
+      name: 'Custom Workflow',
+      description: 'Configure your own workflow settings',
+      icon: '⚙️',
+      settings: {} // No preset - keeps current settings
+    }
+  };
+
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<FormInput, any, FormOutput>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -107,6 +153,32 @@ const OrderWorkflowSettings = () => {
     }
   }, [workflowSettings, reset]);
 
+  // ✅ NEW: Apply preset when workflow mode changes
+  const handleModeChange = (mode: 'FULL_SERVICE' | 'QUICK_SERVICE' | 'CUSTOM') => {
+    if (mode === 'CUSTOM') {
+      // Keep current settings for custom mode
+      setValue('orderWorkflowMode', mode);
+      return;
+    }
+
+    // Show confirmation before applying preset
+    const confirmed = window.confirm(
+      `Apply ${workflowModes[mode].name} preset? This will override your current settings.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    // Apply preset settings
+    const preset = workflowModes[mode].settings;
+    Object.entries(preset).forEach(([key, value]) => {
+      setValue(key as any, value);
+    });
+
+    toast.success(`${workflowModes[mode].name} preset applied!`);
+  };
+
   const onSubmit: SubmitHandler<FormOutput> = async (data) => {
     setIsSubmitting(true);
     try {
@@ -123,35 +195,6 @@ const OrderWorkflowSettings = () => {
     if (window.confirm('Reset to saved settings?')) {
       dispatch(fetchWorkflowSettings());
       toast.success('Settings reset to saved values');
-    }
-  };
-
-  const workflowModes = {
-    FULL_SERVICE: {
-      name: 'Full Service Restaurant',
-      description: 'Complete workflow: Order → Kitchen → Serve → Payment',
-      icon: '🍽️',
-      defaultSettings: {
-        requirePaymentAtOrder: false,
-        autoPrintKOT: true,
-        orderStatusFlow: 'PENDING_PREPARING_SERVED_COMPLETED',
-      }
-    },
-    QUICK_SERVICE: {
-      name: 'Quick Service / Fast Food',
-      description: 'Payment first, then preparation: Payment → Kitchen → Serve',
-      icon: '🍔',
-      defaultSettings: {
-        requirePaymentAtOrder: true,
-        autoPrintKOT: true,
-        orderStatusFlow: 'PENDING_READY_SERVED_COMPLETED',
-      }
-    },
-    CUSTOM: {
-      name: 'Custom Workflow',
-      description: 'Configure your own workflow settings',
-      icon: '⚙️',
-      defaultSettings: {}
     }
   };
 
@@ -193,6 +236,7 @@ const OrderWorkflowSettings = () => {
                   type="radio"
                   value={key}
                   {...register('orderWorkflowMode')}
+                  onChange={(e) => handleModeChange(e.target.value as any)}
                   className="sr-only"
                 />
                 <div className="text-center">
@@ -213,6 +257,17 @@ const OrderWorkflowSettings = () => {
 
           {errors.orderWorkflowMode && (
             <p className="text-red-500 text-sm">{errors.orderWorkflowMode.message}</p>
+          )}
+
+          {/* ✅ NEW: Info box showing what will happen */}
+          {selectedMode !== 'CUSTOM' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Preset Applied:</strong> Selecting this mode will configure all settings 
+                optimized for {workflowModes[selectedMode as keyof typeof workflowModes].name.toLowerCase()}.
+                You can still customize individual settings below.
+              </p>
+            </div>
           )}
         </div>
 
